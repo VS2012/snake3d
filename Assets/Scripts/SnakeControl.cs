@@ -102,6 +102,7 @@ public class SnakeControl : MonoBehaviour
         //ShowRewardedAd();
         resumeButton.gameObject.SetActive(false);
         restartButton.gameObject.SetActive(false);
+        pauseButton.gameObject.SetActive(true);
         ResumeGame();
     }
 
@@ -111,6 +112,7 @@ public class SnakeControl : MonoBehaviour
         StartCoroutine(RestartGame());
         resumeButton.gameObject.SetActive(false);
         restartButton.gameObject.SetActive(false);
+        pauseButton.gameObject.SetActive(true);
     }
 
     void PauseButtonEvent()
@@ -196,6 +198,23 @@ public class SnakeControl : MonoBehaviour
                 }
             }
         }
+
+        for(int i = 0; i < 5; i ++)
+        {
+            for(int j = 0; j < 5; j ++)
+            {
+                for(int k = 0; k < 5; k ++)
+                {
+                    moveSpace[i, j, k] = UNREACHABLE;
+                    if(i == 4 || j == 4 || k == 4)
+                    {
+                        moveSpace[i, j, k] = BLANKSPACE;
+                    }
+                }
+            }
+        }
+
+
     }
 
     private void DrawMap()
@@ -208,6 +227,20 @@ public class SnakeControl : MonoBehaviour
                 for (int k = 0; k < 11; k++)
                 {
                     if (i == 0 || j == 0 || k == 0)
+                    {
+                        Instantiate(floorCube, new Vector3(i - 1, j - 1, k - 1), Quaternion.identity);
+                    }
+                }
+            }
+        }
+
+        for (int i = 0; i < 5; i++)
+        {
+            for (int j = 0; j < 5; j++)
+            {
+                for (int k = 0; k < 5; k++)
+                {
+                    if (i == 4 || j == 4 || k == 4)
                     {
                         Instantiate(floorCube, new Vector3(i - 1, j - 1, k - 1), Quaternion.identity);
                     }
@@ -261,6 +294,13 @@ public class SnakeControl : MonoBehaviour
             GameObject.Destroy(body.gameObject);
         }
 
+        var blastBodys = GameObject.FindGameObjectsWithTag("BlastBody");
+        //Debug.Log(blastBodys.Length);
+        foreach (var blastBody in blastBodys)
+        {
+            GameObject.Destroy(blastBody);
+        }
+
         snakeBodyDic.Clear();
         snakeBodyList.Clear();
 
@@ -291,6 +331,12 @@ public class SnakeControl : MonoBehaviour
         {
             body.gameObject.SetActive(true);
             body.Appear();
+        }
+        var blastBodys = GameObject.FindGameObjectsWithTag("BlastBody");
+        //Debug.Log(blastBodys.Length);
+        foreach(var blastBody in blastBodys)
+        {
+            GameObject.Destroy(blastBody);
         }
     }
 
@@ -329,6 +375,11 @@ public class SnakeControl : MonoBehaviour
         if (moveSpace[(int)headNextPos.x, (int)headNextPos.y, (int)headNextPos.z] == SNAKE)
         {
             Debug.Log("Game Over, hit self");
+            return true;
+        }
+        if (moveSpace[(int)headNextPos.x, (int)headNextPos.y, (int)headNextPos.z] == UNREACHABLE)
+        {
+            Debug.Log("Game Over");
             return true;
         }
         return false;
@@ -573,7 +624,7 @@ public class SnakeControl : MonoBehaviour
         gameOver = true;
         //headNextPos -= nextDirection;
         atomDistance = 0;
-        
+        pauseButton.gameObject.SetActive(false);
         restartButton.gameObject.SetActive(true);
 
         //if (Advertisement.IsReady())
@@ -733,14 +784,26 @@ public class SnakeControl : MonoBehaviour
     //生成新的块
     private void GenSnakeBody()
     {
-        int zeroIndex = Mathf.CeilToInt(Random.Range(-0.999f, 1.999f));
+        //int zeroIndex = Mathf.CeilToInt(Random.Range(-0.999f, 1.999f));
         int[] index = new int[3];
+        int count = 0;
         do
         {
+            count = 0;
             for (int i = 0; i < 3; i++)
             {
-                index[i] = (i == zeroIndex ? 0 : Mathf.CeilToInt(Random.Range(-0.999f, 8.999f)));
+                //index[i] = (i == zeroIndex ? 0 : Mathf.CeilToInt(Random.Range(-0.999f, 8.999f)));
+                index[i] = Mathf.CeilToInt(Random.Range(-0.999f, 8.999f));
+                if(index[i] == 4)
+                {
+                    count ++;
+                }
             }
+            if(count >= 2)
+            {
+                continue;
+            }
+            
         }
         while (moveSpace[index[0], index[1], index[2]] != BLANKSPACE);
 
