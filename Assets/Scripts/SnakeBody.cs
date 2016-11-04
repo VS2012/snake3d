@@ -21,10 +21,8 @@ public class SnakeBody : MonoBehaviour
     public bool appending = false;
     public bool eat = false;
     //public bool gameover = false;
-    public bool isAD = false;
     public bool isFlash = false;
     public bool isDouble = false;
-    public bool isLife = false;
 
     void Start()
     {

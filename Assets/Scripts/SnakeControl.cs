@@ -54,12 +54,14 @@ public class SnakeControl : MonoBehaviour
     private const float waitTime = 0.4f;
     private float currentWaitTime = 0;
 
-    private const float speedUpTime = 10;
-    private float currentSpeedUpTime = 0;
+    //private const float speedUpTime = 10;
+    //private float currentSpeedUpTime = 0;
 
     private const float blastTime = 0.15f;
     public static bool gameOver = false;
     private bool resuming = false;
+    private bool paused = false;
+    private float timeScale = 0;
     private bool doAtMoveBegin = false;
 
 
@@ -68,6 +70,7 @@ public class SnakeControl : MonoBehaviour
 
     private Button resumeButton;
     private Button restartButton;
+    private Button pauseButton;
 
     void Start()
     {
@@ -110,15 +113,21 @@ public class SnakeControl : MonoBehaviour
         restartButton.gameObject.SetActive(false);
     }
 
-    public void ShowDefaultAd()
+    void PauseButtonEvent()
     {
-        Debug.Log("ShowDefaultAd");
-        if (!Advertisement.IsReady())
+        if(paused)
         {
-            Debug.Log("Ads not ready for default zone");
-            return;
+            Time.timeScale = timeScale;
+            paused = false;
+            pauseButton.GetComponentInChildren<Text>().text = "暂停";
         }
-        Advertisement.Show();
+        else
+        {
+            timeScale = Time.timeScale;
+            Time.timeScale = 0;
+            paused = true;
+            pauseButton.GetComponentInChildren<Text>().text = "继续";
+        }
     }
 
     public void ShowRewardedAd()
@@ -159,12 +168,15 @@ public class SnakeControl : MonoBehaviour
     {
         resumeButton = GameObject.Find("ResumeButton").GetComponent<Button>();
         restartButton = GameObject.Find("RestartButton").GetComponent<Button>();
+        pauseButton = GameObject.Find("PauseButton").GetComponent<Button>();
 
         resumeButton.onClick.AddListener(ResumeButtonEvent);
         restartButton.onClick.AddListener(RestartButtonEvent);
+        pauseButton.onClick.AddListener(PauseButtonEvent);
 
         resumeButton.gameObject.SetActive(false);
         restartButton.gameObject.SetActive(false);
+        pauseButton.gameObject.SetActive(true);
     }
 
     private void InitMap()
@@ -258,9 +270,7 @@ public class SnakeControl : MonoBehaviour
         gameOver = false;
         resuming = false;
         speedUp = false;
-        //lifeCount = 0;
-        //lifeCountText.text = "X " + lifeCount;
-        currentSpeedUpTime = 0;
+        //currentSpeedUpTime = 0;
         currentWaitTime = 0;
         Time.timeScale = 1.0f;
         yield return null;
@@ -293,16 +303,16 @@ public class SnakeControl : MonoBehaviour
     {
         if (!gameOver && !resuming)
         {
-            if (speedUp)
-            {
-                currentSpeedUpTime += Time.deltaTime;
-                if (currentSpeedUpTime > speedUpTime)
-                {
-                    speedUp = false;
-                    currentSpeedUpTime = 0;
-                    Time.timeScale /= 2;
-                }
-            }
+            //if (speedUp)
+            //{
+            //    currentSpeedUpTime += Time.deltaTime;
+            //    if (currentSpeedUpTime > speedUpTime)
+            //    {
+            //        speedUp = false;
+            //        currentSpeedUpTime = 0;
+            //        Time.timeScale /= 2;
+            //    }
+            //}
             DoMove();
         }
     }
@@ -569,7 +579,7 @@ public class SnakeControl : MonoBehaviour
         //if (Advertisement.IsReady())
         {
             resumeButton.gameObject.SetActive(true);
-            restartButton.GetComponent<RectTransform>().localPosition = new Vector3(0, -50, 0);
+            restartButton.GetComponent<RectTransform>().localPosition = new Vector3(0, -100, 0);
             restartButton.GetComponentInChildren<Text>().text = "我才不看广告呢╭(╯^╰)╮";
         }
         //else
@@ -649,9 +659,7 @@ public class SnakeControl : MonoBehaviour
         if (moveSpace[(int)headNextPos.x, (int)headNextPos.y, (int)headNextPos.z] == EATBODY)
         {
             Debug.Log("got one!");
-            //printState();
-
-            GenSnakeBody();
+            
             SnakeBody bodyCube = null;
             snakeBodyDic.TryGetValue(headNextPos, out bodyCube);
             if (bodyCube != null)
@@ -671,6 +679,7 @@ public class SnakeControl : MonoBehaviour
 
                 moveSpace[bodyCube.posX, bodyCube.posY, bodyCube.posZ] = SNAKE;
                 bodyCube.eat = true;
+                GenSnakeBody();
 
                 if (bodyCube.isDouble)
                 {
@@ -678,9 +687,14 @@ public class SnakeControl : MonoBehaviour
                 }
                 if (bodyCube.isFlash)
                 {
-                    Time.timeScale *= 2;
-                    currentSpeedUpTime = 0;
-                    speedUp = true;
+                    Time.timeScale ++;
+                    //currentSpeedUpTime = 0;
+                    //speedUp = true;
+                }
+                else if(Time.timeScale > 1)
+                {
+                    //speedUp = false;
+                    Time.timeScale --;
                 }
 
                 snakeBodyList.Add(bodyCube);
@@ -734,7 +748,6 @@ public class SnakeControl : MonoBehaviour
         Vector3 position = new Vector3(index[0], index[1], index[2]);
         GameObject newBodyCube = (GameObject)Instantiate(snakeBodyCube, position, Quaternion.identity);
         SnakeBody body = newBodyCube.GetComponent<SnakeBody>();
-        body.isAD = true;
         body.setPos(position);
 
         int indexSum = index[0] + index[1] + index[2];
