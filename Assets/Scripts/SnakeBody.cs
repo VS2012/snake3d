@@ -23,6 +23,7 @@ public class SnakeBody : MonoBehaviour
     //public bool gameover = false;
     public bool isFlash = false;
     public bool isDouble = false;
+    public bool isSwitch = false;
 
     void Start()
     {

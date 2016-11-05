@@ -9,19 +9,21 @@ public class SnakeControl : MonoBehaviour
     public GameObject floorCube;
     public GameObject snakeHeadCube;
     public GameObject snakeBodyCube;
-    private SnakeBody snakeHead;
-
-    public Material adMaterial;
+    
     public Material flashMaterial;
     public Material doubleMaterial;
+    public Material switchMaterial;
     public Material bodyMaterial;
     public Material bodyMaterial2;
     public Material bodyMaterial3;
     public Material bodyMaterial4;
     public Material bodyMaterial5;
 
+    //
     private Dictionary<Vector3, SnakeBody> snakeBodyDic = new Dictionary<Vector3, SnakeBody>();
     private List<SnakeBody> snakeBodyList = new List<SnakeBody>();
+    private List<GameObject> floorCubes = new List<GameObject>();
+    private SnakeBody snakeHead;
 
     private int[, ,] moveSpace = new int[10, 10, 10];//-1代表不可移动到，0代表小蛇占用，1代表空白，2代表可以吃的块
     private int UNREACHABLE = -1;
@@ -29,6 +31,7 @@ public class SnakeControl : MonoBehaviour
     private int BLANKSPACE = 1;
     private int EATBODY = 2;
 
+    //方向
     private Vector3 positiveX = new Vector3(1, 0, 0);
     private Vector3 negativeX = new Vector3(-1, 0, 0);
     private Vector3 positiveY = new Vector3(0, 1, 0);
@@ -37,37 +40,37 @@ public class SnakeControl : MonoBehaviour
     private Vector3 negativeZ = new Vector3(0, 0, -1);
 
     private Vector3 gameStartPos = new Vector3(3, 0, 7);
-    //public Vector3 headNextPos;
     public Vector3 nextDirection;
 
+    //触控操作的开始和结束位置
     public Vector2 touchBeganPos;
     public Vector2 touchEndPos;
 
+    //控制物理计算
     private const float Acceleration = 12;
     private float startV = 0.0f;
-    private float displacement = 0.0f;
     private const float accLength = 0.1f;
     private const float uniformLength = 0.8f;
+    private float displacement = 0.0f;
     public static float atomDistance;
 
-    private bool speedUp = false;
+    private const float blastTime = 0.15f;
     private const float waitTime = 0.4f;
     private float currentWaitTime = 0;
-
+    
     //private const float speedUpTime = 10;
     //private float currentSpeedUpTime = 0;
 
-    private const float blastTime = 0.15f;
+    //游戏运行状态
     public static bool gameOver = false;
-    private bool resuming = false;
-    private bool paused = false;
+    private bool gameResuming = false;
+    private bool gamePaused = false;
+    private bool gameSpeedUp = false;
+
     private float timeScale = 0;
     private bool doAtMoveBegin = false;
 
-
-    //private Text lifeCountText;
-    //private int lifeCount;
-
+    //界面上的按钮
     private Button resumeButton;
     private Button restartButton;
     private Button pauseButton;
@@ -80,6 +83,21 @@ public class SnakeControl : MonoBehaviour
         DrawMap();
         InitSnakeHead();
         GenSnakeBody();
+    }
+
+    private void InitUI()
+    {
+        resumeButton = GameObject.Find("ResumeButton").GetComponent<Button>();
+        restartButton = GameObject.Find("RestartButton").GetComponent<Button>();
+        pauseButton = GameObject.Find("PauseButton").GetComponent<Button>();
+
+        resumeButton.onClick.AddListener(ResumeButtonEvent);
+        restartButton.onClick.AddListener(RestartButtonEvent);
+        pauseButton.onClick.AddListener(PauseButtonEvent);
+
+        resumeButton.gameObject.SetActive(false);
+        restartButton.gameObject.SetActive(false);
+        pauseButton.gameObject.SetActive(true);
     }
 
     void ResumeButtonEvent()
@@ -117,17 +135,17 @@ public class SnakeControl : MonoBehaviour
 
     void PauseButtonEvent()
     {
-        if(paused)
+        if(gamePaused)
         {
             Time.timeScale = timeScale;
-            paused = false;
+            gamePaused = false;
             pauseButton.GetComponentInChildren<Text>().text = "暂停";
         }
         else
         {
             timeScale = Time.timeScale;
             Time.timeScale = 0;
-            paused = true;
+            gamePaused = true;
             pauseButton.GetComponentInChildren<Text>().text = "继续";
         }
     }
@@ -166,21 +184,8 @@ public class SnakeControl : MonoBehaviour
         }
     }
 
-    private void InitUI()
-    {
-        resumeButton = GameObject.Find("ResumeButton").GetComponent<Button>();
-        restartButton = GameObject.Find("RestartButton").GetComponent<Button>();
-        pauseButton = GameObject.Find("PauseButton").GetComponent<Button>();
-
-        resumeButton.onClick.AddListener(ResumeButtonEvent);
-        restartButton.onClick.AddListener(RestartButtonEvent);
-        pauseButton.onClick.AddListener(PauseButtonEvent);
-
-        resumeButton.gameObject.SetActive(false);
-        restartButton.gameObject.SetActive(false);
-        pauseButton.gameObject.SetActive(true);
-    }
-
+    
+    //初始化地图数组
     private void InitMap()
     {
         //初始化地图数组
@@ -214,9 +219,9 @@ public class SnakeControl : MonoBehaviour
             }
         }
 
-
     }
 
+    //绘制地图
     private void DrawMap()
     {
         //绘制地图
@@ -249,6 +254,7 @@ public class SnakeControl : MonoBehaviour
         }
     }
 
+    //初始化蛇头
     private void InitSnakeHead()
     {
         GameObject obj = (GameObject)Instantiate(snakeHeadCube, gameStartPos, Quaternion.identity);
@@ -266,6 +272,32 @@ public class SnakeControl : MonoBehaviour
         moveSpace[snakeHead.posX, snakeHead.posY, snakeHead.posZ] = SNAKE;
     }
 
+    //
+    private void ResumeGame()
+    {
+        gameResuming = true;
+        gameOver = false;
+        atomDistance = 0;
+        //snakeHead.currentPos -= snakeHead.moveDirection;
+        foreach (var body in snakeBodyList)
+        {
+            body.gameObject.SetActive(true);
+            body.Appear();
+        }
+        foreach (var body in snakeBodyDic.Values)
+        {
+            body.gameObject.SetActive(true);
+            body.Appear();
+        }
+        var blastBodys = GameObject.FindGameObjectsWithTag("BlastBody");
+        //Debug.Log(blastBodys.Length);
+        foreach (var blastBody in blastBodys)
+        {
+            GameObject.Destroy(blastBody);
+        }
+    }
+   
+    //死亡爆炸
     IEnumerator ShowBlast()
     {
         foreach (var body in snakeBodyList)
@@ -282,6 +314,7 @@ public class SnakeControl : MonoBehaviour
         yield return new WaitForSeconds(blastTime);
     }
 
+    //重新开始游戏
     IEnumerator RestartGame()
     {
         Debug.Log("RestartGame");
@@ -308,37 +341,15 @@ public class SnakeControl : MonoBehaviour
         InitSnakeHead();
         GenSnakeBody();
         gameOver = false;
-        resuming = false;
-        speedUp = false;
+        gameResuming = false;
+        gameSpeedUp = false;
         //currentSpeedUpTime = 0;
         currentWaitTime = 0;
         Time.timeScale = 1.0f;
         yield return null;
     }
 
-    private void ResumeGame()
-    {
-        resuming = true;
-        gameOver = false;
-        atomDistance = 0;
-        //snakeHead.currentPos -= snakeHead.moveDirection;
-        foreach (var body in snakeBodyList)
-        {
-            body.gameObject.SetActive(true);
-            body.Appear();
-        }
-        foreach (var body in snakeBodyDic.Values)
-        {
-            body.gameObject.SetActive(true);
-            body.Appear();
-        }
-        var blastBodys = GameObject.FindGameObjectsWithTag("BlastBody");
-        //Debug.Log(blastBodys.Length);
-        foreach(var blastBody in blastBodys)
-        {
-            GameObject.Destroy(blastBody);
-        }
-    }
+    
 
     void Update()
     {
@@ -347,7 +358,7 @@ public class SnakeControl : MonoBehaviour
 
     void FixedUpdate()
     {
-        if (!gameOver && !resuming)
+        if (!gameOver && !gameResuming)
         {
             //if (speedUp)
             //{
@@ -363,6 +374,7 @@ public class SnakeControl : MonoBehaviour
         }
     }
 
+    //
     private bool CheckGameOver()
     {
         //Vector3 tempNextPos = headNextPos + nextDirection;
@@ -385,6 +397,7 @@ public class SnakeControl : MonoBehaviour
         return false;
     }
 
+    //处理用户输入
     private void ProcessUserInput()
     {
         if (Input.GetKey("space"))
@@ -512,6 +525,7 @@ public class SnakeControl : MonoBehaviour
         }
     }
 
+
     private void TryChangeDirection(Vector3 direction)
     {
         Debug.Log("TryChangeDirection " + direction);
@@ -600,22 +614,14 @@ public class SnakeControl : MonoBehaviour
         if(changed)
         {
             currentWaitTime = waitTime + 0.1f;
-            if(resuming)
+            if(gameResuming)
             {
-                resuming = false;
+                gameResuming = false;
                 ProcessDirectionChange();
             }
         }
     }
 
-    private bool checkMove(int x, int y, int z)
-    {
-        if (x * y * z != 0)
-            return false;
-        if (moveSpace[x, y, z] <= 0)
-            return false;
-        return true;
-    }
 
     private void ProcessGameOver()
     {
@@ -813,12 +819,10 @@ public class SnakeControl : MonoBehaviour
         SnakeBody body = newBodyCube.GetComponent<SnakeBody>();
         body.setPos(position);
 
-        int indexSum = index[0] + index[1] + index[2];
-        //Debug.Log(indexSum);
-
+        int randomType = Mathf.CeilToInt(Random.value * 10);
         if (snakeBodyList.Count > 2)
         {
-            switch (indexSum)
+            switch (randomType)
             {
                 case 3:
                     {
@@ -834,7 +838,8 @@ public class SnakeControl : MonoBehaviour
                     }
                 case 5:
                     {
-                        newBodyCube.GetComponent<Renderer>().material = bodyMaterial2;
+                        newBodyCube.GetComponent<Renderer>().material = switchMaterial;
+                        body.isSwitch = true;
                         break;
                     }
                 case 6:
@@ -862,8 +867,6 @@ public class SnakeControl : MonoBehaviour
 
         snakeBodyDic.Add(position, body);
 
-        //Debug.Log("xyz " + index[0] + " " + index[1] + " " + index[2]);
-        //Debug.Log("position " + newBodyCube.transform.position);
     }
 
 
