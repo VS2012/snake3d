@@ -24,6 +24,7 @@ public class SnakeBody : MonoBehaviour
     public bool isFlash = false;
     public bool isDouble = false;
     public bool isSwitch = false;
+    public bool isMuscle = false;
 
     void Start()
     {

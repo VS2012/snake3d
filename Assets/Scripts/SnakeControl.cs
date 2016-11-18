@@ -9,10 +9,12 @@ public class SnakeControl : MonoBehaviour
     public GameObject floorCube;
     public GameObject snakeHeadCube;
     public GameObject snakeBodyCube;
+    public GameObject barrierCube;
     
     public Material flashMaterial;
     public Material doubleMaterial;
     public Material switchMaterial;
+    public Material muscleMaterial;
     public Material bodyMaterial;
     public Material bodyMaterial2;
     public Material bodyMaterial3;
@@ -23,9 +25,11 @@ public class SnakeControl : MonoBehaviour
     private Dictionary<Vector3, SnakeBody> snakeBodyDic = new Dictionary<Vector3, SnakeBody>();
     private List<SnakeBody> snakeBodyList = new List<SnakeBody>();
     private List<GameObject> floorCubes = new List<GameObject>();
+    private Dictionary<Vector3, GameObject> barrierDic = new Dictionary<Vector3, GameObject>();
     private SnakeBody snakeHead;
 
-    private int[, ,] moveSpace = new int[10, 10, 10];//-1代表不可移动到，0代表小蛇占用，1代表空白，2代表可以吃的块
+    private int[, ,] moveSpace = new int[12, 12, 12];//-1代表不可移动到，0代表小蛇占用，1代表空白，2代表可以吃的块
+    private int BARRIER = -2;
     private int UNREACHABLE = -1;
     private int SNAKE = 0;
     private int BLANKSPACE = 1;
@@ -39,7 +43,7 @@ public class SnakeControl : MonoBehaviour
     private Vector3 positiveZ = new Vector3(0, 0, 1);
     private Vector3 negativeZ = new Vector3(0, 0, -1);
 
-    private Vector3 gameStartPos = new Vector3(3, 0, 7);
+    private Vector3 gameStartPos = new Vector3(3, 1, 7);
     public Vector3 nextDirection;
 
     //触控操作的开始和结束位置
@@ -65,7 +69,7 @@ public class SnakeControl : MonoBehaviour
     public static bool gameOver = false;
     private bool gameResuming = false;
     private bool gamePaused = false;
-    private bool gameSpeedUp = false;
+    //private bool gameSpeedUp = false;
 
     private float timeScale = 0;
     private bool doAtMoveBegin = false;
@@ -74,6 +78,8 @@ public class SnakeControl : MonoBehaviour
     private Button resumeButton;
     private Button restartButton;
     private Button pauseButton;
+
+    private int muscleCount = 0;
 
     void Start()
     {
@@ -189,35 +195,40 @@ public class SnakeControl : MonoBehaviour
     private void InitMap()
     {
         //初始化地图数组
-        for (int i = 0; i < 10; i++)
+        for (int i = 0; i < 12; i++)
         {
-            for (int j = 0; j < 10; j++)
+            for (int j = 0; j < 12; j++)
             {
-                for (int k = 0; k < 10; k++)
+                for (int k = 0; k < 12; k++)
                 {
                     moveSpace[i, j, k] = UNREACHABLE;
-                    if (i == 0 || j == 0 || k == 0)
+                    if (i == 1 || j == 1 || k == 1)
                     {
                         moveSpace[i, j, k] = BLANKSPACE;
+                        if(i == 11 || j == 11 || k == 11 || i == 0 || j == 0 || k == 0)
+                        {
+                            moveSpace[i, j, k] = UNREACHABLE;
+                        }
                     }
+                    
                 }
             }
         }
 
-        for(int i = 0; i < 5; i ++)
-        {
-            for(int j = 0; j < 5; j ++)
-            {
-                for(int k = 0; k < 5; k ++)
-                {
-                    moveSpace[i, j, k] = UNREACHABLE;
-                    if(i == 4 || j == 4 || k == 4)
-                    {
-                        moveSpace[i, j, k] = BLANKSPACE;
-                    }
-                }
-            }
-        }
+        //for(int i = 0; i < 5; i ++)
+        //{
+        //    for(int j = 0; j < 5; j ++)
+        //    {
+        //        for(int k = 0; k < 5; k ++)
+        //        {
+        //            moveSpace[i, j, k] = UNREACHABLE;
+        //            if(i == 4 || j == 4 || k == 4)
+        //            {
+        //                moveSpace[i, j, k] = BLANKSPACE;
+        //            }
+        //        }
+        //    }
+        //}
 
     }
 
@@ -233,25 +244,25 @@ public class SnakeControl : MonoBehaviour
                 {
                     if (i == 0 || j == 0 || k == 0)
                     {
-                        Instantiate(floorCube, new Vector3(i - 1, j - 1, k - 1), Quaternion.identity);
+                        Instantiate(floorCube, new Vector3(i , j , k ), Quaternion.identity);
                     }
                 }
             }
         }
 
-        for (int i = 0; i < 5; i++)
-        {
-            for (int j = 0; j < 5; j++)
-            {
-                for (int k = 0; k < 5; k++)
-                {
-                    if (i == 4 || j == 4 || k == 4)
-                    {
-                        Instantiate(floorCube, new Vector3(i - 1, j - 1, k - 1), Quaternion.identity);
-                    }
-                }
-            }
-        }
+        //for (int i = 0; i < 5; i++)
+        //{
+        //    for (int j = 0; j < 5; j++)
+        //    {
+        //        for (int k = 0; k < 5; k++)
+        //        {
+        //            if (i == 4 || j == 4 || k == 4)
+        //            {
+        //                Instantiate(floorCube, new Vector3(i - 1, j - 1, k - 1), Quaternion.identity);
+        //            }
+        //        }
+        //    }
+        //}
     }
 
     //初始化蛇头
@@ -342,7 +353,7 @@ public class SnakeControl : MonoBehaviour
         GenSnakeBody();
         gameOver = false;
         gameResuming = false;
-        gameSpeedUp = false;
+        //gameSpeedUp = false;
         //currentSpeedUpTime = 0;
         currentWaitTime = 0;
         Time.timeScale = 1.0f;
@@ -378,12 +389,12 @@ public class SnakeControl : MonoBehaviour
     private bool CheckGameOver()
     {
         //Vector3 tempNextPos = headNextPos + nextDirection;
-        Vector3 headNextPos = snakeHead.currentPos + snakeHead.moveDirection + nextDirection;
-        if (headNextPos.x < 0 || headNextPos.x > 9 || headNextPos.y < 0 || headNextPos.y > 9 || headNextPos.z < 0 || headNextPos.z > 9)
-        {
-            Debug.Log("Game Over, out of map");
-            return true;
-        }
+        Vector3 headNextPos = snakeHead.currentPos + snakeHead.moveDirection;// +nextDirection;
+        //if (headNextPos.x < 0 || headNextPos.x > 9 || headNextPos.y < 0 || headNextPos.y > 9 || headNextPos.z < 0 || headNextPos.z > 9)
+        //{
+        //    Debug.Log("Game Over, out of map");
+        //    return true;
+        //}
         if (moveSpace[(int)headNextPos.x, (int)headNextPos.y, (int)headNextPos.z] == SNAKE)
         {
             Debug.Log("Game Over, hit self");
@@ -393,6 +404,26 @@ public class SnakeControl : MonoBehaviour
         {
             Debug.Log("Game Over");
             return true;
+        }
+        if (moveSpace[(int)headNextPos.x, (int)headNextPos.y, (int)headNextPos.z] == BARRIER)
+        {
+            if(muscleCount > 0)
+            {
+                muscleCount--;
+                GameObject barrier = null;
+                barrierDic.TryGetValue(headNextPos, out barrier);
+                if(barrier != null)
+                {
+                    barrier.GetComponent<BarrierControl>().Blast();
+                    barrierDic.Remove(headNextPos);
+                }
+                return false;
+            }
+            else
+            {
+                Debug.Log("Game Over, hit barrier");
+                return true;
+            }
         }
         return false;
     }
@@ -530,7 +561,12 @@ public class SnakeControl : MonoBehaviour
     {
         Debug.Log("TryChangeDirection " + direction);
 
+        
         Vector3 headNextPos = snakeHead.currentPos + snakeHead.moveDirection;
+        if(gameResuming)
+        {
+            headNextPos = snakeHead.currentPos;
+        }
         int x = (int)headNextPos.x;
         int y = (int)headNextPos.y;
         int z = (int)headNextPos.z;
@@ -540,11 +576,7 @@ public class SnakeControl : MonoBehaviour
 
         if (direction == positiveX)
         {
-            if (x + 1 > 9)
-            {
-                Debug.Log("out of range");
-            }
-            else if (moveSpace[x + 1, y, z] > 0)
+            if (moveSpace[x + 1, y, z] > 0)
             {
                 nextDirection = positiveX;
                 changed = true;
@@ -552,11 +584,7 @@ public class SnakeControl : MonoBehaviour
         }
         else if (direction == negativeX)
         {
-            if (x - 1 < 0)
-            {
-                Debug.Log("out of range");
-            }
-            else if (moveSpace[x - 1, y, z] > 0)
+            if (moveSpace[x - 1, y, z] > 0)
             {
                 nextDirection = negativeX;
                 changed = true;
@@ -564,11 +592,7 @@ public class SnakeControl : MonoBehaviour
         }
         else if (direction == positiveY)
         {
-            if (y + 1 > 9)
-            {
-                Debug.Log("out of range");
-            }
-            else if (moveSpace[x, y + 1, z] > 0)
+            if (moveSpace[x, y + 1, z] > 0)
             {
                 nextDirection = positiveY;
                 changed = true;
@@ -576,11 +600,7 @@ public class SnakeControl : MonoBehaviour
         }
         else if (direction == negativeY)
         {
-            if (y - 1 < 0)
-            {
-                Debug.Log("out of range");
-            }
-            else if (moveSpace[x, y - 1, z] > 0)
+            if (moveSpace[x, y - 1, z] > 0)
             {
                 nextDirection = negativeY;
                 changed = true;
@@ -588,11 +608,7 @@ public class SnakeControl : MonoBehaviour
         }
         else if (direction == positiveZ)
         {
-            if (z + 1 > 9)
-            {
-                Debug.Log("out of range");
-            }
-            else if (moveSpace[x, y, z + 1] > 0)
+            if (moveSpace[x, y, z + 1] > 0)
             {
                 nextDirection = positiveZ;
                 changed = true;
@@ -600,11 +616,7 @@ public class SnakeControl : MonoBehaviour
         }
         else if (direction == negativeZ)
         {
-            if (z - 1 < 0)
-            {
-                Debug.Log("out of range");
-            }
-            else if (moveSpace[x, y, z - 1] > 0)
+            if (moveSpace[x, y, z - 1] > 0)
             {
                 nextDirection = negativeZ;
                 changed = true;
@@ -616,7 +628,7 @@ public class SnakeControl : MonoBehaviour
             currentWaitTime = waitTime + 0.1f;
             if(gameResuming)
             {
-                gameResuming = false;
+                //gameResuming = false;
                 ProcessDirectionChange();
             }
         }
@@ -655,7 +667,11 @@ public class SnakeControl : MonoBehaviour
         {
             return;
         }
-        
+        if (CheckGameOver())
+        {
+            ProcessGameOver();
+            return;
+        }
         ProcessEat();
         doAtMoveBegin = true;
     }
@@ -677,7 +693,6 @@ public class SnakeControl : MonoBehaviour
         }
         if (displacement > 0.999)
         {
-            doAtMoveBegin = false;
             currentWaitTime += Time.deltaTime;
             if (currentWaitTime < waitTime)
             {
@@ -688,16 +703,17 @@ public class SnakeControl : MonoBehaviour
             {
                 currentWaitTime = 0;
             }
+            doAtMoveBegin = false;
             //处理物理，重新开始加速
             displacement = 0;
             startV = 0;
             tempA = Acceleration;
 
-            if (CheckGameOver())
-            {
-                ProcessGameOver();
-                return;
-            }
+            //if (CheckGameOver())
+            //{
+            //    ProcessGameOver();
+            //    return;
+            //}
 
             ProcessDirectionChange();
         }
@@ -753,6 +769,14 @@ public class SnakeControl : MonoBehaviour
                     //speedUp = false;
                     Time.timeScale --;
                 }
+                if(bodyCube.isSwitch)
+                {
+                    ProcessSwitch();
+                }
+                if(bodyCube.isMuscle)
+                {
+                    muscleCount += 3;
+                }
 
                 snakeBodyList.Add(bodyCube);
                 snakeBodyDic.Remove(headNextPos);
@@ -763,25 +787,31 @@ public class SnakeControl : MonoBehaviour
 
     private void ProcessDirectionChange()
     {
-        //处理尾部
-        SnakeBody lastBody = snakeBodyList[snakeBodyList.Count - 1];
-        moveSpace[lastBody.posX, lastBody.posY, lastBody.posZ] = BLANKSPACE;
-        //处理头部
-        snakeHead.moveOneStep();
-        moveSpace[snakeHead.posX, snakeHead.posY, snakeHead.posZ] = SNAKE;
-        //headNextPos += nextDirection;
+        if(!gameResuming)
+        {
+            //处理尾部
+            SnakeBody lastBody = snakeBodyList[snakeBodyList.Count - 1];
+            moveSpace[lastBody.posX, lastBody.posY, lastBody.posZ] = BLANKSPACE;
+            //处理头部
+            snakeHead.moveOneStep();
+            moveSpace[snakeHead.posX, snakeHead.posY, snakeHead.posZ] = SNAKE;
 
-        //更新方向数据
-        for (int i = 0; i < snakeBodyList.Count; i++)
-        {
-            snakeBodyList[i].preDirection = snakeBodyList[i].moveDirection;
+            //更新方向数据
+            for (int i = 0; i < snakeBodyList.Count; i++)
+            {
+                snakeBodyList[i].preDirection = snakeBodyList[i].moveDirection;
+            }
+            for (int i = snakeBodyList.Count - 1; i > 0; i--)
+            {
+                SnakeBody body = snakeBodyList[i];
+                SnakeBody bodypre = snakeBodyList[i - 1];
+                body.moveOneStep();
+                body.moveDirection = bodypre.preDirection;
+            }
         }
-        for (int i = snakeBodyList.Count - 1; i > 0; i--)
+        else
         {
-            SnakeBody body = snakeBodyList[i];
-            SnakeBody bodypre = snakeBodyList[i - 1];
-            body.moveOneStep();
-            body.moveDirection = bodypre.preDirection;
+            gameResuming = false;
         }
 
         snakeHead.moveDirection = nextDirection;
@@ -809,7 +839,6 @@ public class SnakeControl : MonoBehaviour
             {
                 continue;
             }
-            
         }
         while (moveSpace[index[0], index[1], index[2]] != BLANKSPACE);
 
@@ -820,7 +849,7 @@ public class SnakeControl : MonoBehaviour
         body.setPos(position);
 
         int randomType = Mathf.CeilToInt(Random.value * 10);
-        if (snakeBodyList.Count > 2)
+        //if (snakeBodyList.Count > 2)
         {
             switch (randomType)
             {
@@ -844,7 +873,8 @@ public class SnakeControl : MonoBehaviour
                     }
                 case 6:
                     {
-                        newBodyCube.GetComponent<Renderer>().material = bodyMaterial3;
+                        newBodyCube.GetComponent<Renderer>().material = muscleMaterial;
+                        body.isMuscle = true;
                         break;
                     }
                 case 7:
@@ -867,6 +897,41 @@ public class SnakeControl : MonoBehaviour
 
         snakeBodyDic.Add(position, body);
 
+    }
+
+    private void ProcessSwitch()
+    {
+        List<int[]> indexes = new List<int[]>();
+        for(int i = 0; i < 10; i ++)
+        {
+            int[] index = getBlankSpace();
+            indexes.Add(index);
+            if(i > 0)
+            {
+
+            }
+            moveSpace[index[0], index[1], index[2]] = BARRIER;
+            var barrier = Instantiate(barrierCube);
+            barrier.GetComponent<BarrierControl>().setPos(index);
+
+            barrierDic.Add(new Vector3(index[0], index[1], index[2]), barrier.gameObject);
+        }
+    }
+
+    private int[] getBlankSpace()
+    {
+        int[] index = new int[3];
+        do
+        {
+            for (int i = 0; i < 3; i++)
+            {
+                //index[i] = (i == zeroIndex ? 0 : Mathf.CeilToInt(Random.Range(-0.999f, 8.999f)));
+                index[i] = Mathf.CeilToInt(Random.Range(0.001f, 9.999f));
+            }
+        }
+        while (moveSpace[index[0], index[1], index[2]] != BLANKSPACE);
+
+        return index;
     }
 
 
