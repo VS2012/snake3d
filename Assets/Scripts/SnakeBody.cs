@@ -101,9 +101,11 @@ public class SnakeBody : MonoBehaviour
 
     public void Blast(int count)
     {
-        float subCubeLength = 1 / (float)count + 0.1f / count;
-        float offset = subCubeLength * (count % 2) + subCubeLength / 2 * (count / 2);
+        float subCubeLength = 1 / (float)count;
+        float physicsLength = subCubeLength + 0.2f / count;
+        float offset = (subCubeLength / 2) * (count - 1);
         blastCube.GetComponent<Renderer>().material = gameObject.GetComponent<Renderer>().material;
+        blastCube.transform.localScale = new Vector3(physicsLength, physicsLength, physicsLength);
         Vector3 position = new Vector3();
 
         for (int i = 0; i < count; i++)
