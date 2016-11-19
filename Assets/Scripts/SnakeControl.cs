@@ -315,16 +315,16 @@ public class SnakeControl : MonoBehaviour
     {
         foreach (var body in snakeBodyList)
         {
-            body.Blast();
+            body.Blast(3);
             body.gameObject.SetActive(false);
             yield return new WaitForSeconds(blastTime);
         }
         foreach (var body in snakeBodyDic.Values)
         {
-            body.Blast();
+            body.Blast(3);
             body.gameObject.SetActive(false);
+            yield return new WaitForSeconds(blastTime);
         }
-        yield return new WaitForSeconds(blastTime);
     }
 
     //重新开始游戏
@@ -792,7 +792,7 @@ public class SnakeControl : MonoBehaviour
             snakeBodyDic.TryGetValue(headNextPos, out bodyCube);
             if (bodyCube != null)
             {
-                bodyCube.Blast();
+                bodyCube.Blast(4);
                 SnakeBody lastBody = snakeBodyList[snakeBodyList.Count - 1];
                 if (lastBody.moveDirection != lastBody.preDirection)
                 {

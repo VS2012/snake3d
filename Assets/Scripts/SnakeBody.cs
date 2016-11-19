@@ -99,19 +99,22 @@ public class SnakeBody : MonoBehaviour
         appeared = false;
     }
 
-    public void Blast()
+    public void Blast(int count)
     {
+        float subCubeLength = 1 / (float)count + 0.1f / count;
+        float offset = subCubeLength * (count % 2) + subCubeLength / 2 * (count / 2);
         blastCube.GetComponent<Renderer>().material = gameObject.GetComponent<Renderer>().material;
         Vector3 position = new Vector3();
-        for (int i = 0; i < 4; i++)
+
+        for (int i = 0; i < count; i++)
         {
-            for (int j = 0; j < 4; j++)
+            for (int j = 0; j < count; j++)
             {
-                for (int k = 0; k < 4; k++)
+                for (int k = 0; k < count; k++)
                 {
-                    position.x = posX - 0.375f + i * 0.25f;
-                    position.y = posY - 0.375f + j * 0.25f;
-                    position.z = posZ - 0.375f + k * 0.25f;
+                    position.x = posX - offset + i * subCubeLength;
+                    position.y = posY - offset + j * subCubeLength;
+                    position.z = posZ - offset + k * subCubeLength;
                     Instantiate(blastCube, position, Quaternion.identity);
                 }
             }
