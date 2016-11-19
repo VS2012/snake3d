@@ -333,18 +333,22 @@ public class SnakeControl : MonoBehaviour
         Debug.Log("RestartGame");
         foreach (var body in snakeBodyList)
         {
-            GameObject.Destroy(body.gameObject);
+            Destroy(body.gameObject);
         }
         foreach (var body in snakeBodyDic.Values)
         {
-            GameObject.Destroy(body.gameObject);
+            Destroy(body.gameObject);
         }
 
         var blastBodys = GameObject.FindGameObjectsWithTag("BlastBody");
         //Debug.Log(blastBodys.Length);
         foreach (var blastBody in blastBodys)
         {
-            GameObject.Destroy(blastBody);
+            Destroy(blastBody);
+        }
+        foreach(var barrier in barrierDic.Values)
+        {
+            Destroy(barrier);
         }
 
         snakeBodyDic.Clear();
