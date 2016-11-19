@@ -10,11 +10,12 @@ public class SnakeControl : MonoBehaviour
     public GameObject snakeHeadCube;
     public GameObject snakeBodyCube;
     public GameObject barrierCube;
-    
+
     public Material flashMaterial;
     public Material doubleMaterial;
     public Material switchMaterial;
     public Material muscleMaterial;
+    public Material penetrateMaterial;
     public Material bodyMaterial;
     public Material bodyMaterial2;
     public Material bodyMaterial3;
@@ -29,11 +30,11 @@ public class SnakeControl : MonoBehaviour
     private SnakeBody snakeHead;
 
     private int[, ,] moveSpace = new int[12, 12, 12];//-1代表不可移动到，0代表小蛇占用，1代表空白，2代表可以吃的块
-    private int BARRIER = -2;
-    private int UNREACHABLE = -1;
-    private int SNAKE = 0;
-    private int BLANKSPACE = 1;
-    private int EATBODY = 2;
+    private const int BARRIER = -2;
+    private const int UNREACHABLE = -1;
+    private const int SNAKE = 0;
+    private const int BLANKSPACE = 1;
+    private const int EATBODY = 2;
 
     //方向
     private Vector3 positiveX = new Vector3(1, 0, 0);
@@ -61,7 +62,7 @@ public class SnakeControl : MonoBehaviour
     private const float blastTime = 0.15f;
     private const float waitTime = 0.4f;
     private float currentWaitTime = 0;
-    
+
     //private const float speedUpTime = 10;
     //private float currentSpeedUpTime = 0;
 
@@ -80,6 +81,7 @@ public class SnakeControl : MonoBehaviour
     private Button pauseButton;
 
     private int muscleCount = 0;
+    private int penetrateCount = 0;
 
     void Start()
     {
@@ -141,7 +143,7 @@ public class SnakeControl : MonoBehaviour
 
     void PauseButtonEvent()
     {
-        if(gamePaused)
+        if (gamePaused)
         {
             Time.timeScale = timeScale;
             gamePaused = false;
@@ -190,7 +192,7 @@ public class SnakeControl : MonoBehaviour
         }
     }
 
-    
+
     //初始化地图数组
     private void InitMap()
     {
@@ -205,12 +207,12 @@ public class SnakeControl : MonoBehaviour
                     if (i == 1 || j == 1 || k == 1)
                     {
                         moveSpace[i, j, k] = BLANKSPACE;
-                        if(i == 11 || j == 11 || k == 11 || i == 0 || j == 0 || k == 0)
+                        if (i == 11 || j == 11 || k == 11 || i == 0 || j == 0 || k == 0)
                         {
                             moveSpace[i, j, k] = UNREACHABLE;
                         }
                     }
-                    
+
                 }
             }
         }
@@ -244,7 +246,7 @@ public class SnakeControl : MonoBehaviour
                 {
                     if (i == 0 || j == 0 || k == 0)
                     {
-                        Instantiate(floorCube, new Vector3(i , j , k ), Quaternion.identity);
+                        Instantiate(floorCube, new Vector3(i, j, k), Quaternion.identity);
                     }
                 }
             }
@@ -278,7 +280,7 @@ public class SnakeControl : MonoBehaviour
 
         nextDirection = negativeX;
         //headNextPos = snakeHead.currentPos + snakeHead.moveDirection;
-        
+
         snakeBodyList.Add(snakeHead);
         moveSpace[snakeHead.posX, snakeHead.posY, snakeHead.posZ] = SNAKE;
     }
@@ -307,7 +309,7 @@ public class SnakeControl : MonoBehaviour
             GameObject.Destroy(blastBody);
         }
     }
-   
+
     //死亡爆炸
     IEnumerator ShowBlast()
     {
@@ -357,10 +359,12 @@ public class SnakeControl : MonoBehaviour
         //currentSpeedUpTime = 0;
         currentWaitTime = 0;
         Time.timeScale = 1.0f;
+        muscleCount = 0;
+        penetrateCount = 0;
         yield return null;
     }
 
-    
+
 
     void Update()
     {
@@ -397,8 +401,16 @@ public class SnakeControl : MonoBehaviour
         //}
         if (moveSpace[(int)headNextPos.x, (int)headNextPos.y, (int)headNextPos.z] == SNAKE)
         {
-            Debug.Log("Game Over, hit self");
-            return true;
+            if (penetrateCount > 0)
+            {
+                penetrateCount--;
+                return false;
+            }
+            else
+            {
+                Debug.Log("Game Over, hit self");
+                return true;
+            }
         }
         if (moveSpace[(int)headNextPos.x, (int)headNextPos.y, (int)headNextPos.z] == UNREACHABLE)
         {
@@ -407,12 +419,12 @@ public class SnakeControl : MonoBehaviour
         }
         if (moveSpace[(int)headNextPos.x, (int)headNextPos.y, (int)headNextPos.z] == BARRIER)
         {
-            if(muscleCount > 0)
+            if (muscleCount > 0)
             {
                 muscleCount--;
                 GameObject barrier = null;
                 barrierDic.TryGetValue(headNextPos, out barrier);
-                if(barrier != null)
+                if (barrier != null)
                 {
                     barrier.GetComponent<BarrierControl>().Blast();
                     barrierDic.Remove(headNextPos);
@@ -561,9 +573,8 @@ public class SnakeControl : MonoBehaviour
     {
         Debug.Log("TryChangeDirection " + direction);
 
-        
         Vector3 headNextPos = snakeHead.currentPos + snakeHead.moveDirection;
-        if(gameResuming)
+        if (gameResuming)
         {
             headNextPos = snakeHead.currentPos;
         }
@@ -576,7 +587,7 @@ public class SnakeControl : MonoBehaviour
 
         if (direction == positiveX)
         {
-            if (moveSpace[x + 1, y, z] > 0)
+            if (checkMove(moveSpace[x + 1, y, z]))
             {
                 nextDirection = positiveX;
                 changed = true;
@@ -584,7 +595,7 @@ public class SnakeControl : MonoBehaviour
         }
         else if (direction == negativeX)
         {
-            if (moveSpace[x - 1, y, z] > 0)
+            if (checkMove(moveSpace[x - 1, y, z]))
             {
                 nextDirection = negativeX;
                 changed = true;
@@ -592,7 +603,7 @@ public class SnakeControl : MonoBehaviour
         }
         else if (direction == positiveY)
         {
-            if (moveSpace[x, y + 1, z] > 0)
+            if (checkMove(moveSpace[x, y + 1, z]))
             {
                 nextDirection = positiveY;
                 changed = true;
@@ -600,7 +611,7 @@ public class SnakeControl : MonoBehaviour
         }
         else if (direction == negativeY)
         {
-            if (moveSpace[x, y - 1, z] > 0)
+            if (checkMove(moveSpace[x, y - 1, z]))
             {
                 nextDirection = negativeY;
                 changed = true;
@@ -608,7 +619,7 @@ public class SnakeControl : MonoBehaviour
         }
         else if (direction == positiveZ)
         {
-            if (moveSpace[x, y, z + 1] > 0)
+            if (checkMove(moveSpace[x, y, z + 1]))
             {
                 nextDirection = positiveZ;
                 changed = true;
@@ -616,22 +627,62 @@ public class SnakeControl : MonoBehaviour
         }
         else if (direction == negativeZ)
         {
-            if (moveSpace[x, y, z - 1] > 0)
+            if (checkMove(moveSpace[x, y, z - 1]))
             {
                 nextDirection = negativeZ;
                 changed = true;
             }
         }
-       
-        if(changed)
+
+        if (changed)
         {
             currentWaitTime = waitTime + 0.1f;
-            if(gameResuming)
+            if (gameResuming)
             {
                 //gameResuming = false;
                 ProcessDirectionChange();
             }
         }
+    }
+
+    private bool checkMove(int spaceValue)
+    {
+        bool flag = false;
+        switch (spaceValue)
+        {
+            case BARRIER:
+                {
+                    if(muscleCount > 0)
+                    {
+                        flag = true;
+                    }
+                    break;
+                }
+            case UNREACHABLE:
+                {
+                    flag = false;
+                    break;
+                }
+            case SNAKE:
+                {
+                    if(penetrateCount > 0)
+                    {
+                        flag = true;
+                    }
+                    break;
+                }
+            case BLANKSPACE:
+                {
+                    flag = true;
+                    break;
+                }
+            case EATBODY:
+                {
+                    flag = true;
+                    break;
+                }
+        }
+        return flag;
     }
 
 
@@ -657,13 +708,13 @@ public class SnakeControl : MonoBehaviour
         //    restartButton.GetComponentInChildren<Text>().text = "重新开始/(ㄒoㄒ)/~~";
         //}
         //Time.timeScale = 0;
-        
+
     }
 
     //判断是否吃到
     private void DoAtMoveBegin()
     {
-        if(doAtMoveBegin)
+        if (doAtMoveBegin)
         {
             return;
         }
@@ -732,7 +783,7 @@ public class SnakeControl : MonoBehaviour
         if (moveSpace[(int)headNextPos.x, (int)headNextPos.y, (int)headNextPos.z] == EATBODY)
         {
             Debug.Log("got one!");
-            
+
             SnakeBody bodyCube = null;
             snakeBodyDic.TryGetValue(headNextPos, out bodyCube);
             if (bodyCube != null)
@@ -760,22 +811,26 @@ public class SnakeControl : MonoBehaviour
                 }
                 if (bodyCube.isFlash)
                 {
-                    Time.timeScale ++;
+                    Time.timeScale++;
                     //currentSpeedUpTime = 0;
                     //speedUp = true;
                 }
-                else if(Time.timeScale > 1)
+                else if (Time.timeScale > 1)
                 {
                     //speedUp = false;
-                    Time.timeScale --;
+                    Time.timeScale--;
                 }
-                if(bodyCube.isSwitch)
+                if (bodyCube.isSwitch)
                 {
                     ProcessSwitch();
                 }
-                if(bodyCube.isMuscle)
+                if (bodyCube.isMuscle)
                 {
-                    muscleCount += 3;
+                    muscleCount++;
+                }
+                if (bodyCube.isPenetrate)
+                {
+                    penetrateCount++;
                 }
 
                 snakeBodyList.Add(bodyCube);
@@ -787,7 +842,7 @@ public class SnakeControl : MonoBehaviour
 
     private void ProcessDirectionChange()
     {
-        if(!gameResuming)
+        if (!gameResuming)
         {
             //处理尾部
             SnakeBody lastBody = snakeBodyList[snakeBodyList.Count - 1];
@@ -830,12 +885,12 @@ public class SnakeControl : MonoBehaviour
             {
                 //index[i] = (i == zeroIndex ? 0 : Mathf.CeilToInt(Random.Range(-0.999f, 8.999f)));
                 index[i] = Mathf.CeilToInt(Random.Range(-0.999f, 8.999f));
-                if(index[i] == 4)
+                if (index[i] == 4)
                 {
-                    count ++;
+                    count++;
                 }
             }
-            if(count >= 2)
+            if (count >= 2)
             {
                 continue;
             }
@@ -853,6 +908,16 @@ public class SnakeControl : MonoBehaviour
         {
             switch (randomType)
             {
+                case 1:
+                    {
+                        newBodyCube.GetComponent<Renderer>().material = bodyMaterial2;
+                        break;
+                    }
+                case 2:
+                    {
+                        newBodyCube.GetComponent<Renderer>().material = bodyMaterial3;
+                        break;
+                    }
                 case 3:
                     {
                         newBodyCube.GetComponent<Renderer>().material = flashMaterial;
@@ -879,7 +944,8 @@ public class SnakeControl : MonoBehaviour
                     }
                 case 7:
                     {
-                        newBodyCube.GetComponent<Renderer>().material = bodyMaterial4;
+                        newBodyCube.GetComponent<Renderer>().material = penetrateMaterial;
+                        body.isPenetrate = true;
                         break;
                     }
                 case 8:
@@ -902,13 +968,74 @@ public class SnakeControl : MonoBehaviour
     private void ProcessSwitch()
     {
         List<int[]> indexes = new List<int[]>();
-        for(int i = 0; i < 10; i ++)
-        {
-            int[] index = getBlankSpace();
-            indexes.Add(index);
-            if(i > 0)
-            {
 
+        int[] index = getBlankSpace();
+        indexes.Add(index);
+        bool flag = false;
+        for (int i = 0; i < 9; i++)
+        {
+            flag = false;
+            var random = Random.value;
+            if (random < 0.1)
+            {
+                if (moveSpace[index[0] + 1, index[1], index[2]] == BLANKSPACE)
+                {
+                    index[0]++;
+                    indexes.Add(index);
+                    flag = true;
+                }
+            }
+            else if(random < 0.3)
+            {
+                if (moveSpace[index[0] - 1, index[1], index[2]] == BLANKSPACE)
+                {
+                    index[0]--;
+                    indexes.Add(index);
+                    flag = true;
+                }
+            }
+            else if (random < 0.5)
+            {
+                if (moveSpace[index[0], index[1]+1, index[2]] == BLANKSPACE)
+                {
+                    index[1]++;
+                    indexes.Add(index);
+                    flag = true;
+                }
+            }
+            else if (random < 0.7)
+            {
+                if (moveSpace[index[0], index[1]-1, index[2]] == BLANKSPACE)
+                {
+                    index[1]--;
+                    indexes.Add(index);
+                    flag = true;
+                }
+            }
+            else if (random < 0.8)
+            {
+                if (moveSpace[index[0], index[1], index[2]+1] == BLANKSPACE)
+                {
+                    index[2]++;
+                    indexes.Add(index);
+                    flag = true;
+                }
+            }
+            else if (random < 1)
+            {
+                if (moveSpace[index[0], index[1], index[2]-1] == BLANKSPACE)
+                {
+                    index[2]--;
+                    indexes.Add(index);
+                    flag = true;
+                }
+            }
+
+            if(!flag)
+            {
+                i--;
+                index = getBlankSpace();
+                continue;
             }
             moveSpace[index[0], index[1], index[2]] = BARRIER;
             var barrier = Instantiate(barrierCube);
@@ -916,6 +1043,7 @@ public class SnakeControl : MonoBehaviour
 
             barrierDic.Add(new Vector3(index[0], index[1], index[2]), barrier.gameObject);
         }
+
     }
 
     private int[] getBlankSpace()
