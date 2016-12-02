@@ -1,10 +1,15 @@
 ﻿using UnityEngine;
 using System.Collections;
 
-enum CubeType
+public enum CubeType
 {
+    CommonCube,
     DoubleCube,
     FlashCube,
-    SwitchCube
+    SwitchCube,
+    MuscleCube,
+    PenetrateCube,
+    LightOffCube,
+    LightOnCube
 }
 

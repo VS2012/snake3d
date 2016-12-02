@@ -11,11 +11,18 @@ public class SnakeControl : MonoBehaviour
     public GameObject snakeBodyCube;
     public GameObject barrierCube;
 
+    public Light light;
+    public GameObject camera;
+    private Light headLight;
+    private SwitchLight switchLight;
+
     public Material flashMaterial;
     public Material doubleMaterial;
     public Material switchMaterial;
     public Material muscleMaterial;
     public Material penetrateMaterial;
+    public Material lightOffMaterial;
+    public Material lightOnMaterial;
     public Material bodyMaterial;
     public Material bodyMaterial2;
     public Material bodyMaterial3;
@@ -25,7 +32,7 @@ public class SnakeControl : MonoBehaviour
     //
     private Dictionary<Vector3, SnakeBody> snakeBodyDic = new Dictionary<Vector3, SnakeBody>();
     private List<SnakeBody> snakeBodyList = new List<SnakeBody>();
-    private List<GameObject> floorCubes = new List<GameObject>();
+    //private List<GameObject> floorCubes = new List<GameObject>();
     private Dictionary<Vector3, GameObject> barrierDic = new Dictionary<Vector3, GameObject>();
     private SnakeBody snakeHead;
 
@@ -272,14 +279,22 @@ public class SnakeControl : MonoBehaviour
     {
         GameObject obj = (GameObject)Instantiate(snakeHeadCube, gameStartPos, Quaternion.identity);
         snakeHead = obj.GetComponent<SnakeBody>();
-
         snakeHead.setPos(gameStartPos);
         snakeHead.eat = true;
         snakeHead.preDirection = negativeX;
         snakeHead.moveDirection = negativeX;
 
         nextDirection = negativeX;
-        //headNextPos = snakeHead.currentPos + snakeHead.moveDirection;
+
+        headLight = obj.GetComponent<Light>();
+        headLight.intensity = 0;
+        headLight.shadows = LightShadows.Soft;
+
+        switchLight = camera.GetComponent<SwitchLight>();
+        switchLight.headLight = headLight;
+        switchLight.headMaterial = obj.GetComponent<Renderer>().material;
+        switchLight.Init();
+        switchLight.enabled = false;
 
         snakeBodyList.Add(snakeHead);
         moveSpace[snakeHead.posX, snakeHead.posY, snakeHead.posZ] = SNAKE;
@@ -367,7 +382,6 @@ public class SnakeControl : MonoBehaviour
         penetrateCount = 0;
         yield return null;
     }
-
 
 
     void Update()
@@ -807,34 +821,56 @@ public class SnakeControl : MonoBehaviour
 
                 moveSpace[bodyCube.posX, bodyCube.posY, bodyCube.posZ] = SNAKE;
                 bodyCube.eat = true;
+
+                switch(bodyCube.cubeType)
+                {
+                    case CubeType.CommonCube:
+                        {
+                            break;
+                        }
+                    case CubeType.DoubleCube:
+                        {
+                            GenSnakeBody();
+                            break;
+                        }
+                    case CubeType.FlashCube:
+                        {
+                            Time.timeScale++;
+                            break;
+                        }
+                    case CubeType.LightOffCube:
+                        {
+                            ProcessLight(false);
+                            GenSnakeBody(true);
+                            break;
+                        }
+                    case CubeType.LightOnCube:
+                        {
+                            ProcessLight(true);
+                            break;
+                        }
+                    case CubeType.MuscleCube:
+                        {
+                            muscleCount++;
+                            break;
+                        }
+                    case CubeType.PenetrateCube:
+                        {
+                            penetrateCount++;
+                            break;
+                        }
+                    case CubeType.SwitchCube:
+                        {
+                            ProcessSwitch();
+                            break;
+                        }
+                }
+
                 GenSnakeBody();
 
-                if (bodyCube.isDouble)
+                if (bodyCube.cubeType != CubeType.FlashCube && Time.timeScale > 1)
                 {
-                    GenSnakeBody();
-                }
-                if (bodyCube.isFlash)
-                {
-                    Time.timeScale++;
-                    //currentSpeedUpTime = 0;
-                    //speedUp = true;
-                }
-                else if (Time.timeScale > 1)
-                {
-                    //speedUp = false;
                     Time.timeScale--;
-                }
-                if (bodyCube.isSwitch)
-                {
-                    ProcessSwitch();
-                }
-                if (bodyCube.isMuscle)
-                {
-                    muscleCount++;
-                }
-                if (bodyCube.isPenetrate)
-                {
-                    penetrateCount++;
                 }
 
                 snakeBodyList.Add(bodyCube);
@@ -877,7 +913,7 @@ public class SnakeControl : MonoBehaviour
     }
 
     //生成新的块
-    private void GenSnakeBody()
+    private void GenSnakeBody(bool needLight = false)
     {
         //int zeroIndex = Mathf.CeilToInt(Random.Range(-0.999f, 1.999f));
         int[] index = new int[3];
@@ -908,6 +944,14 @@ public class SnakeControl : MonoBehaviour
         body.setPos(position);
 
         int randomType = Mathf.CeilToInt(Random.value * 10);
+        if(needLight)
+        {
+            randomType = 9;
+        }
+        else //if(randomType == 9)
+        {
+            randomType = 8;
+        }
         //if (snakeBodyList.Count > 2)
         {
             switch (randomType)
@@ -925,41 +969,43 @@ public class SnakeControl : MonoBehaviour
                 case 3:
                     {
                         newBodyCube.GetComponent<Renderer>().material = flashMaterial;
-                        body.isFlash = true;
+                        body.cubeType = CubeType.FlashCube;
                         break;
                     }
                 case 4:
                     {
                         newBodyCube.GetComponent<Renderer>().material = doubleMaterial;
-                        body.isDouble = true;
+                        body.cubeType = CubeType.DoubleCube;
                         break;
                     }
                 case 5:
                     {
                         newBodyCube.GetComponent<Renderer>().material = switchMaterial;
-                        body.isSwitch = true;
+                        body.cubeType = CubeType.SwitchCube;
                         break;
                     }
                 case 6:
                     {
                         newBodyCube.GetComponent<Renderer>().material = muscleMaterial;
-                        body.isMuscle = true;
+                        body.cubeType = CubeType.MuscleCube;
                         break;
                     }
                 case 7:
                     {
                         newBodyCube.GetComponent<Renderer>().material = penetrateMaterial;
-                        body.isPenetrate = true;
+                        body.cubeType = CubeType.PenetrateCube;
                         break;
                     }
                 case 8:
                     {
-                        newBodyCube.GetComponent<Renderer>().material = bodyMaterial5;
+                        newBodyCube.GetComponent<Renderer>().material = lightOffMaterial;
+                        body.cubeType = CubeType.LightOffCube;
                         break;
                     }
                 case 9:
                     {
-                        newBodyCube.GetComponent<Renderer>().material = bodyMaterial;
+                        newBodyCube.GetComponent<Renderer>().material = lightOnMaterial;
+                        body.cubeType = CubeType.LightOnCube;
                         break;
                     }
             }
@@ -1048,6 +1094,20 @@ public class SnakeControl : MonoBehaviour
             barrierDic.Add(new Vector3(index[0], index[1], index[2]), barrier.gameObject);
         }
 
+    }
+
+    private void ProcessLight(bool offon)
+    {
+        if(!offon)
+        {
+            switchLight.enabled = true;
+            switchLight.turnOff();
+        }
+        else
+        {
+            switchLight.enabled = true;
+            switchLight.turnOn();
+        }
     }
 
     private int[] getBlankSpace()

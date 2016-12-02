@@ -17,15 +17,12 @@ public class SnakeBody : MonoBehaviour
 
     public Vector3 preDirection;
     public Vector3 moveDirection;
+
+    public CubeType cubeType = CubeType.CommonCube;
+
     public bool appeared = false;
     public bool appending = false;
     public bool eat = false;
-    //public bool gameover = false;
-    public bool isFlash = false;
-    public bool isDouble = false;
-    public bool isSwitch = false;
-    public bool isMuscle = false;
-    public bool isPenetrate = false;
 
     void Start()
     {
