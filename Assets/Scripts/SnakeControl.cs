@@ -372,14 +372,16 @@ public class SnakeControl : MonoBehaviour
         InitMap();
         InitSnakeHead();
         GenSnakeBody();
+
         gameOver = false;
         gameResuming = false;
-        //gameSpeedUp = false;
-        //currentSpeedUpTime = 0;
         currentWaitTime = 0;
         Time.timeScale = 1.0f;
         muscleCount = 0;
         penetrateCount = 0;
+
+        RenderSettings.ambientLight = Color.gray;
+
         yield return null;
     }
 
@@ -841,7 +843,7 @@ public class SnakeControl : MonoBehaviour
                     case CubeType.LightOffCube:
                         {
                             ProcessLight(false);
-                            GenSnakeBody(true);
+                            GenSnakeBody(CubeType.LightOnCube);
                             break;
                         }
                     case CubeType.LightOnCube:
@@ -913,7 +915,7 @@ public class SnakeControl : MonoBehaviour
     }
 
     //生成新的块
-    private void GenSnakeBody(bool needLight = false)
+    private void GenSnakeBody(CubeType type = CubeType.CommonCube)
     {
         //int zeroIndex = Mathf.CeilToInt(Random.Range(-0.999f, 1.999f));
         int[] index = new int[3];
@@ -944,11 +946,11 @@ public class SnakeControl : MonoBehaviour
         body.setPos(position);
 
         int randomType = Mathf.CeilToInt(Random.value * 10);
-        if(needLight)
+        if(type == CubeType.LightOnCube)
         {
             randomType = 9;
         }
-        else //if(randomType == 9)
+        else if(randomType == 9)
         {
             randomType = 8;
         }
@@ -969,7 +971,7 @@ public class SnakeControl : MonoBehaviour
                 case 3:
                     {
                         newBodyCube.GetComponent<Renderer>().material = flashMaterial;
-                        body.cubeType = CubeType.FlashCube;
+                        body.cubeType = (CubeType)randomType;
                         break;
                     }
                 case 4:

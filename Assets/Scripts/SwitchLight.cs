@@ -13,7 +13,7 @@ public class SwitchLight : MonoBehaviour
     public Material headMaterial;
 
     Light light;
-    GameObject camera;
+    Camera camera;
     
     bool begin = false;
     private int onoff = -1;
@@ -21,12 +21,19 @@ public class SwitchLight : MonoBehaviour
 
     void Start()
     {
-        light = GameObject.Find("Light").GetComponent<Light>();
-        camera = GameObject.Find("Camera");
+        
     }
 
     public void Init()
     {
+        light = GameObject.Find("Light").GetComponent<Light>();
+        camera = GameObject.Find("Camera").GetComponent<Camera>();
+
+        camera.backgroundColor = Color.cyan;
+        light.intensity = 1;
+        headLight.intensity = 0;
+        RenderSettings.ambientLight = Color.gray;
+
         headMaterial.EnableKeyword("_EMISSION");
         headMaterial.globalIlluminationFlags = MaterialGlobalIlluminationFlags.RealtimeEmissive;
         headMaterial.SetColor("_EmissionColor", Color.black);
@@ -41,7 +48,7 @@ public class SwitchLight : MonoBehaviour
 
         if(onoff == -1 && bgColor.g < 0)
         {
-            camera.GetComponent<Camera>().backgroundColor = Color.black;
+            camera.backgroundColor = Color.black;
             light.intensity = 0;
             headLight.intensity = 5;
             headMaterial.SetColor("_EmissionColor", Color.white);
@@ -52,7 +59,7 @@ public class SwitchLight : MonoBehaviour
         }
         if(onoff == 1 && bgColor.g > 1)
         {
-            camera.GetComponent<Camera>().backgroundColor = Color.cyan;
+            camera.backgroundColor = Color.cyan;
             light.intensity = 1;
             headLight.intensity = 0;
             headMaterial.SetColor("_EmissionColor", Color.black);
@@ -73,12 +80,13 @@ public class SwitchLight : MonoBehaviour
         emissionColor.g = emissionColor.r;
         emissionColor.b = emissionColor.r;
 
-        camera.GetComponent<Camera>().backgroundColor = bgColor;
+        camera.backgroundColor = bgColor;
         light.intensity = accumulation;
         headLight.intensity = 5 - accumulation * 5;
         headMaterial.SetColor("_EmissionColor", emissionColor);
         RenderSettings.ambientLight = ambientColor;
     }
+
 
     public void turnOff()
     {

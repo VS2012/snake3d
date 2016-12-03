@@ -5,7 +5,7 @@ public enum CubeType
 {
     CommonCube,
     DoubleCube,
-    FlashCube,
+    FlashCube = 3,
     SwitchCube,
     MuscleCube,
     PenetrateCube,
