@@ -98,6 +98,15 @@ public class SnakeControl : MonoBehaviour
         DrawMap();
         InitSnakeHead();
         GenSnakeBody();
+        //SetObliqueness(0, 0.1f);
+    }
+
+    void SetObliqueness(float horizObl, float vertObl)
+    {
+        Matrix4x4 mat = Camera.main.projectionMatrix;
+        mat[0, 2] = horizObl;
+        mat[1, 2] = vertObl;
+        Camera.main.projectionMatrix = mat;
     }
 
     private void InitUI()
@@ -119,6 +128,8 @@ public class SnakeControl : MonoBehaviour
     {
         StopAllCoroutines();
         const string RewardedZoneId = "1179800";
+        StartCoroutine(showAD());
+
         if (Advertisement.IsReady(RewardedZoneId))
         {
             var options = new ShowOptions { resultCallback = HandleShowResult };
@@ -126,7 +137,7 @@ public class SnakeControl : MonoBehaviour
         }
         else if (Advertisement.IsReady())
         {
-            Advertisement.Show();
+            //Advertisement.Show();
         }
         else
         {
@@ -137,6 +148,18 @@ public class SnakeControl : MonoBehaviour
         restartButton.gameObject.SetActive(false);
         pauseButton.gameObject.SetActive(true);
         ResumeGame();
+    }
+
+    IEnumerator showAD()
+    {
+        while (!Advertisement.IsReady("1179800"))
+        {
+            Debug.Log("wait");
+            yield return new WaitForSeconds(1);
+        }
+
+        Advertisement.Show("1179800");
+        yield return null;
     }
 
     void RestartButtonEvent()
@@ -288,7 +311,7 @@ public class SnakeControl : MonoBehaviour
 
         headLight = obj.GetComponent<Light>();
         headLight.intensity = 0;
-        headLight.shadows = LightShadows.Soft;
+        headLight.shadows = LightShadows.Hard;
 
         switchLight = camera.GetComponent<SwitchLight>();
         switchLight.headLight = headLight;
