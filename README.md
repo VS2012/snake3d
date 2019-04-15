@@ -1,2 +1,2 @@
 # snake3d
-a little game built using unity
+A little game built with unity
