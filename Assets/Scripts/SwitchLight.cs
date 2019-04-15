@@ -1,5 +1,4 @@
 ﻿using UnityEngine;
-using System.Collections;
 
 public class SwitchLight : MonoBehaviour
 {
@@ -12,12 +11,14 @@ public class SwitchLight : MonoBehaviour
     [HideInInspector]
     public Material headMaterial;
 
-    Light light;
-    Camera camera;
+    Light myLight;
+    Camera myCamera;
     
     bool begin = false;
-    private int onoff = -1;
-    private float accumulation = 1;
+    int onoff = -1;
+    float accumulation = 1;
+
+    public static bool state = true; //true 表示灯处于亮着的状态
 
     void Start()
     {
@@ -26,11 +27,11 @@ public class SwitchLight : MonoBehaviour
 
     public void Init()
     {
-        light = GameObject.Find("Light").GetComponent<Light>();
-        camera = GameObject.Find("Camera").GetComponent<Camera>();
+        myLight = GameObject.Find("Light").GetComponent<Light>();
+        myCamera = GameObject.Find("Camera").GetComponent<Camera>();
 
-        camera.backgroundColor = Color.cyan;
-        light.intensity = 1;
+        myCamera.backgroundColor = Color.cyan;
+        myLight.intensity = 1;
         headLight.intensity = 0;
         RenderSettings.ambientLight = Color.gray;
 
@@ -48,8 +49,8 @@ public class SwitchLight : MonoBehaviour
 
         if(onoff == -1 && bgColor.g < 0)
         {
-            camera.backgroundColor = Color.black;
-            light.intensity = 0;
+            myCamera.backgroundColor = Color.black;
+            myLight.intensity = 0;
             headLight.intensity = 5;
             headMaterial.SetColor("_EmissionColor", Color.white);
             RenderSettings.ambientLight = Color.black;
@@ -59,8 +60,8 @@ public class SwitchLight : MonoBehaviour
         }
         if(onoff == 1 && bgColor.g > 1)
         {
-            camera.backgroundColor = Color.cyan;
-            light.intensity = 1;
+            myCamera.backgroundColor = Color.cyan;
+            myLight.intensity = 1;
             headLight.intensity = 0;
             headMaterial.SetColor("_EmissionColor", Color.black);
             RenderSettings.ambientLight = Color.gray;
@@ -80,8 +81,8 @@ public class SwitchLight : MonoBehaviour
         emissionColor.g = emissionColor.r;
         emissionColor.b = emissionColor.r;
 
-        camera.backgroundColor = bgColor;
-        light.intensity = accumulation;
+        myCamera.backgroundColor = bgColor;
+        myLight.intensity = accumulation;
         headLight.intensity = 5 - accumulation * 5;
         headMaterial.SetColor("_EmissionColor", emissionColor);
         RenderSettings.ambientLight = ambientColor;
@@ -92,11 +93,13 @@ public class SwitchLight : MonoBehaviour
     {
         onoff = -1;
         begin = true;
+        state = false;
     }
 
     public void turnOn()
     {
         onoff = 1;
         begin = true;
+        state = true;
     }
 }

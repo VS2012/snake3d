@@ -1,0 +1,23 @@
+fileFormatVersion: 2
+guid: ab61ab8c277aa41a48cdea6efb30b6e2
+timeCreated: 1521961787
+licenseType: Free
+TrueTypeFontImporter:
+  externalObjects: {}
+  serializedVersion: 4
+  fontSize: 16
+  forceTextureCase: -2
+  characterSpacing: 0
+  characterPadding: 1
+  includeFontData: 1
+  fontName: ShanghaiFace-Zen-BoldGB1.0
+  fontNames:
+  - ShanghaiFace-Zen-BoldGB1.0
+  fallbackFontReferences: []
+  customCharacters: 
+  fontRenderingMode: 0
+  ascentCalculationMode: 1
+  useLegacyBoundsCalculation: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

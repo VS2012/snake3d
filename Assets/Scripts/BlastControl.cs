@@ -5,14 +5,28 @@ public class BlastControl : MonoBehaviour
 {
     void Start()
     {
-
+        StartCoroutine(CheckAsync());
     }
 
     void Update()
     {
-        if (transform.position.x < -1 || transform.position.y < -1 || transform.position.z < -1)
+        
+    }
+
+    public void CheckDestory()
+    {
+        StartCoroutine(CheckAsync());
+    }
+
+    IEnumerator CheckAsync()
+    {
+        while(gameObject.activeSelf)
         {
-            GameObject.Destroy(gameObject);
+            if (transform.position.y < -2)
+            {
+                Destroy(gameObject);
+            }
+            yield return new WaitForSeconds(0.1f);
         }
     }
 }

@@ -1,8 +1,11 @@
 ﻿using UnityEngine;
 using System.Collections;
 using System.Collections.Generic;
+using System;
+using System.Linq;
 using UnityEngine.UI;
-using UnityEngine.Advertisements;
+
+//程序控制逻辑不能写在 Coroutine 里；UI 动画 特效 这些没有问题。
 
 public class SnakeControl : MonoBehaviour
 {
@@ -11,47 +14,47 @@ public class SnakeControl : MonoBehaviour
     public GameObject snakeBodyCube;
     public GameObject barrierCube;
 
-    public Light light;
-    public GameObject camera;
-    private Light headLight;
-    private SwitchLight switchLight;
+    //public Light light;
+    public Camera myCamera;
+    Light headLight;
+    SwitchLight switchLight;
 
-    public Material flashMaterial;
-    public Material doubleMaterial;
-    public Material switchMaterial;
-    public Material muscleMaterial;
-    public Material penetrateMaterial;
-    public Material lightOffMaterial;
-    public Material lightOnMaterial;
+    public Material flashMaterial; //加速
+    public Material doubleMaterial; //双倍
+    public Material switchMaterial; //机关
+    public Material muscleMaterial; //肌肉
+    public Material penetrateMaterial; //穿透
+    public Material lightOffMaterial; //关灯
+    public Material lightOnMaterial; //开灯
+    public Material trapMaterial; //陷阱
     public Material bodyMaterial;
     public Material bodyMaterial2;
     public Material bodyMaterial3;
     public Material bodyMaterial4;
     public Material bodyMaterial5;
 
-    //
-    private Dictionary<Vector3, SnakeBody> snakeBodyDic = new Dictionary<Vector3, SnakeBody>();
-    private List<SnakeBody> snakeBodyList = new List<SnakeBody>();
-    //private List<GameObject> floorCubes = new List<GameObject>();
-    private Dictionary<Vector3, GameObject> barrierDic = new Dictionary<Vector3, GameObject>();
-    private SnakeBody snakeHead;
+    Dictionary<Vector3, SnakeBody> snakeFoodDic = new Dictionary<Vector3, SnakeBody>(); //保存所有可以吃的块
+    List<SnakeBody> snakeBodyList = new List<SnakeBody>(); //保存小蛇身体的块
+    Dictionary<Vector3, BarrierControl> barrierDic = new Dictionary<Vector3, BarrierControl>(); //保存障碍块
+    SnakeBody snakeHead;
 
-    private int[, ,] moveSpace = new int[12, 12, 12];//-1代表不可移动到，0代表小蛇占用，1代表空白，2代表可以吃的块
-    private const int BARRIER = -2;
-    private const int UNREACHABLE = -1;
-    private const int SNAKE = 0;
-    private const int BLANKSPACE = 1;
-    private const int EATBODY = 2;
+    // int[, ,] moveSpace = new int[12, 12, 12];//-1代表不可移动到，0代表小蛇占用，1代表空白，2代表可以吃的块
+    Dictionary<Vector3, int> MapDic = new Dictionary<Vector3, int>();
+    Dictionary<Vector3, GameObject> CubeObjectDic = new Dictionary<Vector3, GameObject>();
+    const int BARRIER = -2;
+    const int FLOOR = -1;
+    const int SNAKE = 0;
+    const int BLANKSPACE = 1;
+    const int FOOD = 2;
+    int mapSizeX = 10;
+    int mapSizeZ = 10;
+    static int borderLeft = 0;
+    static int borderRight = 9;
+    static int borderForward = 9;
+    static int borderBack = 0;
 
-    //方向
-    private Vector3 positiveX = new Vector3(1, 0, 0);
-    private Vector3 negativeX = new Vector3(-1, 0, 0);
-    private Vector3 positiveY = new Vector3(0, 1, 0);
-    private Vector3 negativeY = new Vector3(0, -1, 0);
-    private Vector3 positiveZ = new Vector3(0, 0, 1);
-    private Vector3 negativeZ = new Vector3(0, 0, -1);
-
-    private Vector3 gameStartPos = new Vector3(3, 1, 7);
+    const int BARRIER_NUM = 6;
+    Vector3 gameStartPos = new Vector3(7, 1, 7); //游戏开始时蛇头的位置
     public Vector3 nextDirection;
 
     //触控操作的开始和结束位置
@@ -59,90 +62,166 @@ public class SnakeControl : MonoBehaviour
     public Vector2 touchEndPos;
 
     //控制物理计算
-    private const float Acceleration = 12;
-    private float startV = 0.0f;
-    private const float accLength = 0.1f;
-    private const float uniformLength = 0.8f;
-    private float displacement = 0.0f;
+    const float Acceleration = 25;
+    float startV = 0.0f;
+    const float accLength = 0.1f;
+    const float uniformLength = 0.8f;
+    float displacement = 0.0f;
     public static float atomDistance;
 
-    private const float blastTime = 0.15f;
-    private const float waitTime = 0.4f;
-    private float currentWaitTime = 0;
+    const float blastTime = 0.15f; // Game over 时连续爆炸的间隔时间
+    const float waitTime = 0.4f;
+    float currentWaitTime = 0;
 
-    //private const float speedUpTime = 10;
-    //private float currentSpeedUpTime = 0;
+    // const float speedUpTime = 10;
+    // float currentSpeedUpTime = 0;
 
     //游戏运行状态
+    bool gameGoing = false;
     public static bool gameOver = false;
-    private bool gameResuming = false;
-    private bool gamePaused = false;
-    //private bool gameSpeedUp = false;
+    bool gameResuming = false;
+    bool gamePaused = false;
+    int gameStatus = 0; // 0 -> UI, 1 -> Going, 2 -> resuming
+    const int STATUS_UI = 0;
+    const int STATUS_GOING = 1;
+    const int STATUS_RESUMING = 2;
 
-    private float timeScale = 0;
-    private bool doAtMoveBegin = false;
+    // bool gameSpeedUp = false;
+
+    float timeScale = 0;
+    bool doAtMoveBegin = false;
 
     //界面上的按钮
-    private Button resumeButton;
-    private Button restartButton;
-    private Button pauseButton;
+    public Button startButton; // 开始游戏
+    public Button resumeButton; // GameOver 时出现的原地复活按钮
+    public Button restartButton; // GameOver 时出现的重新开始按钮
+    public Button pauseButton; //右上角的暂停按钮
+    public Button settingButton; // 左上角的设置按钮
 
-    private int muscleCount = 0;
-    private int penetrateCount = 0;
+    //迟到肌肉和穿透时的提示文字
+    public Text muscleText;
+    public Text penetrateText;
+    int muscleCount = 0;
+    int penetrateCount = 0;
+    public TextMesh tipText;
 
-    void Start()
+    //public TextAsset stage;
+
+    void Awake()
     {
-        Advertisement.Initialize("1179800");
-        InitUI();
-        InitMap();
-        DrawMap();
-        InitSnakeHead();
-        GenSnakeBody();
-        //SetObliqueness(0, 0.1f);
-    }
-
-    void SetObliqueness(float horizObl, float vertObl)
-    {
-        Matrix4x4 mat = Camera.main.projectionMatrix;
-        mat[0, 2] = horizObl;
-        mat[1, 2] = vertObl;
-        Camera.main.projectionMatrix = mat;
-    }
-
-    private void InitUI()
-    {
-        resumeButton = GameObject.Find("ResumeButton").GetComponent<Button>();
-        restartButton = GameObject.Find("RestartButton").GetComponent<Button>();
-        pauseButton = GameObject.Find("PauseButton").GetComponent<Button>();
-
+        startButton.onClick.AddListener(StartButtonEvent);
         resumeButton.onClick.AddListener(ResumeButtonEvent);
         restartButton.onClick.AddListener(RestartButtonEvent);
         pauseButton.onClick.AddListener(PauseButtonEvent);
+    }
 
+    void Start()
+    {
+        //Advertisement.Initialize("1179800");
+        //var r = (Int32)(DateTime.UtcNow.Subtract(new DateTime(1970, 1, 1))).TotalSeconds;
+        var seed = DateTime.Now.DayOfYear * DateTime.Now.Second;
+        Util.Log(seed);
+
+        UnityEngine.Random.InitState(seed);
+        gameStatus = STATUS_UI;
+        StartCoroutine(InitGame());
+        gameResuming = true;
+        gameGoing = true;
+    }
+
+    IEnumerator InitGame()
+    {
+        yield return StartCoroutine(DrawMap());
+        yield return StartCoroutine(InitUI());
+        yield return StartCoroutine(InitSnakeHead());
+        //yield return StartCoroutine(GenSnakeBody());
+        GenSnakeBody();
+    }
+
+    //初始化UI
+    IEnumerator InitUI()
+    {
+        //startButton.gameObject.SetActive(true);
         resumeButton.gameObject.SetActive(false);
         restartButton.gameObject.SetActive(false);
         pauseButton.gameObject.SetActive(true);
+        yield return null;
+
+        tipText.gameObject.SetActive(false);
+        muscleCount = 0;
+        penetrateCount = 0;
+        muscleText.text = "：" + muscleCount;
+        penetrateText.text = "：" + penetrateCount;
+
+        RenderSettings.ambientLight = Color.gray;
     }
 
+    //初始化地图数据
+    void InitMap()
+    {
+        //初始化地图数组
+        for (int i = 0; i < mapSizeX; i++)
+        {
+            for (int j = 0; j < mapSizeZ; j++)
+            {
+                MapDic.Add(new Vector3(i, 0, j), FLOOR);
+                MapDic.Add(new Vector3(i, 1, j), BLANKSPACE);
+            }
+        }
+
+        //var lnes = File.ReadAllLines("Assets/Stages/Stage_1");
+        //var all = stage.text;
+        //var lines = all.Split('\n');
+        //MapDic.Clear();
+
+        //foreach (var line in lines)
+        //{
+        //    var data = line.Split(',');
+        //    var v = new Vector3();
+        //    v.x = Int32.Parse(data[0]);
+        //    v.y = Int32.Parse(data[1]);
+        //    v.z = Int32.Parse(data[2]);
+        //    MapDic.Add(v, Int32.Parse(data[3]));
+        //}
+    }
+
+
+    // 开始游戏
+    void StartButtonEvent()
+    {
+        StartCoroutine(StartGame());
+        startButton.gameObject.SetActive(false);
+    }
+
+    IEnumerator StartGame()
+    {
+        yield return StartCoroutine(InitSnakeHead());
+        //yield return StartCoroutine(GenSnakeBody());
+        GenSnakeBody();
+        gameGoing = true;
+        gameStatus = STATUS_GOING;
+    }
+
+    //原地复活按钮事件
     void ResumeButtonEvent()
     {
         StopAllCoroutines();
-        const string RewardedZoneId = "1179800";
+        //const string RewardedZoneId = "1179800";
         StartCoroutine(showAD());
 
-        if (Advertisement.IsReady(RewardedZoneId))
-        {
-            var options = new ShowOptions { resultCallback = HandleShowResult };
-            Advertisement.Show(RewardedZoneId, options);
-        }
-        else if (Advertisement.IsReady())
-        {
-            //Advertisement.Show();
-        }
-        else
-        {
-            Debug.Log("not ready");
-        }
+        //if (Advertisement.IsReady(RewardedZoneId))
+        //{
+        //    var options = new ShowOptions { resultCallback = HandleShowResult };
+        //    Advertisement.Show(RewardedZoneId, options);
+        //}
+        //else if (Advertisement.IsReady())
+        //{
+        //    //Advertisement.Show();
+        //}
+        //else
+        //{
+        //    Debug.Log("not ready");
+        //}
         //ShowRewardedAd();
         resumeButton.gameObject.SetActive(false);
         restartButton.gameObject.SetActive(false);
@@ -150,232 +229,169 @@ public class SnakeControl : MonoBehaviour
         ResumeGame();
     }
 
-    IEnumerator showAD()
-    {
-        while (!Advertisement.IsReady("1179800"))
-        {
-            Debug.Log("wait");
-            yield return new WaitForSeconds(1);
-        }
-
-        Advertisement.Show("1179800");
-        yield return null;
-    }
-
+    //重新开始按钮事件
     void RestartButtonEvent()
     {
         StopAllCoroutines();
         StartCoroutine(RestartGame());
-        resumeButton.gameObject.SetActive(false);
-        restartButton.gameObject.SetActive(false);
-        pauseButton.gameObject.SetActive(true);
     }
 
+    //暂停按钮事件
     void PauseButtonEvent()
     {
+        //NativeInterface.TapTicImpact();
+        TapticPlugin.TapticManager.Selection();
         if (gamePaused)
         {
             Time.timeScale = timeScale;
             gamePaused = false;
-            pauseButton.GetComponentInChildren<Text>().text = "暂停";
+            pauseButton.GetComponentInChildren<Text>().text = "||";
+            BGMControl.instance.Play();
         }
         else
         {
             timeScale = Time.timeScale;
             Time.timeScale = 0;
             gamePaused = true;
-            pauseButton.GetComponentInChildren<Text>().text = "继续";
+            pauseButton.GetComponentInChildren<Text>().text = ">";
+            BGMControl.instance.Pause();
         }
+    }
+
+    IEnumerator showAD()
+    {
+        //while (!Advertisement.IsReady("1179800"))
+        //{
+        //    Debug.Log("wait");
+        //    yield return new WaitForSeconds(1);
+        //}
+
+        //Advertisement.Show("1179800");
+        yield return null;
     }
 
     public void ShowRewardedAd()
     {
-        Debug.Log("ShowRewardedAd");
-        const string RewardedZoneId = "1179800";
+        Util.Log("ShowRewardedAd");
+        //const string RewardedZoneId = "1179800";
 
-        if (!Advertisement.IsReady(RewardedZoneId))
-        {
-            Debug.Log(string.Format("Ads not ready for zone '{0}'", RewardedZoneId));
-            return;
-        }
-
-        var options = new ShowOptions { resultCallback = HandleShowResult };
-        Advertisement.Show(RewardedZoneId, options);
-    }
-
-    private void HandleShowResult(ShowResult result)
-    {
-        switch (result)
-        {
-            case ShowResult.Finished:
-                Debug.Log("The ad was successfully shown.");
-                //
-                // YOUR CODE TO REWARD THE GAMER
-                // Give coins etc.
-                break;
-            case ShowResult.Skipped:
-                Debug.Log("The ad was skipped before reaching the end.");
-                break;
-            case ShowResult.Failed:
-                Debug.LogError("The ad failed to be shown.");
-                break;
-        }
-    }
-
-
-    //初始化地图数组
-    private void InitMap()
-    {
-        //初始化地图数组
-        for (int i = 0; i < 12; i++)
-        {
-            for (int j = 0; j < 12; j++)
-            {
-                for (int k = 0; k < 12; k++)
-                {
-                    moveSpace[i, j, k] = UNREACHABLE;
-                    if (i == 1 || j == 1 || k == 1)
-                    {
-                        moveSpace[i, j, k] = BLANKSPACE;
-                        if (i == 11 || j == 11 || k == 11 || i == 0 || j == 0 || k == 0)
-                        {
-                            moveSpace[i, j, k] = UNREACHABLE;
-                        }
-                    }
-
-                }
-            }
-        }
-
-        //for(int i = 0; i < 5; i ++)
+        //if (!Advertisement.IsReady(RewardedZoneId))
         //{
-        //    for(int j = 0; j < 5; j ++)
-        //    {
-        //        for(int k = 0; k < 5; k ++)
-        //        {
-        //            moveSpace[i, j, k] = UNREACHABLE;
-        //            if(i == 4 || j == 4 || k == 4)
-        //            {
-        //                moveSpace[i, j, k] = BLANKSPACE;
-        //            }
-        //        }
-        //    }
+        //    Debug.Log(string.Format("Ads not ready for zone '{0}'", RewardedZoneId));
+        //    return;
         //}
 
+        //var options = new ShowOptions { resultCallback = HandleShowResult };
+        //Advertisement.Show(RewardedZoneId, options);
     }
+
+    // void HandleShowResult(ShowResult result)
+    //{
+    //    switch (result)
+    //    {
+    //        case ShowResult.Finished:
+    //            Debug.Log("The ad was successfully shown.");
+    //            //
+    //            // YOUR CODE TO REWARD THE GAMER
+    //            // Give coins etc.
+    //            break;
+    //        case ShowResult.Skipped:
+    //            Debug.Log("The ad was skipped before reaching the end.");
+    //            break;
+    //        case ShowResult.Failed:
+    //            Debug.LogError("The ad failed to be shown.");
+    //            break;
+    //    }
+    //}
+
 
     //绘制地图
-    private void DrawMap()
+    IEnumerator DrawMap()
     {
-        //绘制地图
-        for (int i = 0; i < 11; i++)
+        InitMap();
+        foreach (var key in MapDic.Keys)
         {
-            for (int j = 0; j < 11; j++)
+            if (MapDic[key] == FLOOR)
             {
-                for (int k = 0; k < 11; k++)
-                {
-                    if (i == 0 || j == 0 || k == 0)
-                    {
-                        Instantiate(floorCube, new Vector3(i, j, k), Quaternion.identity);
-                    }
-                }
+                GameObject cube = Instantiate(floorCube, key, Quaternion.identity);
+                yield return cube;
+                CubeObjectDic.Add(key, cube);
             }
         }
-
-        //for (int i = 0; i < 5; i++)
-        //{
-        //    for (int j = 0; j < 5; j++)
-        //    {
-        //        for (int k = 0; k < 5; k++)
-        //        {
-        //            if (i == 4 || j == 4 || k == 4)
-        //            {
-        //                Instantiate(floorCube, new Vector3(i - 1, j - 1, k - 1), Quaternion.identity);
-        //            }
-        //        }
-        //    }
-        //}
     }
 
-    //初始化蛇头
-    private void InitSnakeHead()
+    //初始化蛇头，蛇头的初始移动方向为 x 轴 负方向
+    IEnumerator InitSnakeHead()
     {
-        GameObject obj = (GameObject)Instantiate(snakeHeadCube, gameStartPos, Quaternion.identity);
+        GameObject obj = Instantiate(snakeHeadCube, gameStartPos, Quaternion.identity);
+        yield return obj;
+
         snakeHead = obj.GetComponent<SnakeBody>();
         snakeHead.setPos(gameStartPos);
         snakeHead.eat = true;
-        snakeHead.preDirection = negativeX;
-        snakeHead.moveDirection = negativeX;
+        snakeHead.preDirection = Vector3.left;
+        snakeHead.moveDirection = Vector3.left;
+        nextDirection = Vector3.left;
 
-        nextDirection = negativeX;
-
+        yield return null;
         headLight = obj.GetComponent<Light>();
-        headLight.intensity = 0;
-        headLight.shadows = LightShadows.Hard;
-
-        switchLight = camera.GetComponent<SwitchLight>();
+        switchLight = myCamera.GetComponent<SwitchLight>();
         switchLight.headLight = headLight;
         switchLight.headMaterial = obj.GetComponent<Renderer>().material;
         switchLight.Init();
         switchLight.enabled = false;
 
         snakeBodyList.Add(snakeHead);
-        moveSpace[snakeHead.posX, snakeHead.posY, snakeHead.posZ] = SNAKE;
+        //moveSpace[snakeHead.posX, snakeHead.posY, snakeHead.posZ] = SNAKE;
+        //MapDic[gameStartPos] = SNAKE;
     }
 
     //
-    private void ResumeGame()
+    void ResumeGame()
     {
+        gameStatus = STATUS_RESUMING;
+        gameGoing = true;
         gameResuming = true;
         gameOver = false;
         atomDistance = 0;
         //snakeHead.currentPos -= snakeHead.moveDirection;
         foreach (var body in snakeBodyList)
         {
-            body.gameObject.SetActive(true);
+            //body.gameObject.SetActive(true);
             body.Appear();
         }
-        foreach (var body in snakeBodyDic.Values)
+        foreach (var body in snakeFoodDic.Values)
         {
-            body.gameObject.SetActive(true);
+            //body.gameObject.SetActive(true);
             body.Appear();
         }
         var blastBodys = GameObject.FindGameObjectsWithTag("BlastBody");
         //Debug.Log(blastBodys.Length);
         foreach (var blastBody in blastBodys)
         {
-            GameObject.Destroy(blastBody);
-        }
-    }
-
-    //死亡爆炸
-    IEnumerator ShowBlast()
-    {
-        foreach (var body in snakeBodyList)
-        {
-            body.Blast(3);
-            body.gameObject.SetActive(false);
-            yield return new WaitForSeconds(blastTime);
-        }
-        foreach (var body in snakeBodyDic.Values)
-        {
-            body.Blast(3);
-            body.gameObject.SetActive(false);
-            yield return new WaitForSeconds(blastTime);
+            Destroy(blastBody);
         }
     }
 
     //重新开始游戏
     IEnumerator RestartGame()
     {
-        Debug.Log("RestartGame");
+        //Debug.Log("RestartGame");
         foreach (var body in snakeBodyList)
         {
             Destroy(body.gameObject);
         }
-        foreach (var body in snakeBodyDic.Values)
+        yield return null;
+
+        foreach (var body in snakeFoodDic.Values)
         {
             Destroy(body.gameObject);
+        }
+        yield return null;
+
+        foreach (var barrier in barrierDic.Values)
+        {
+            Destroy(barrier.gameObject);
         }
 
         var blastBodys = GameObject.FindGameObjectsWithTag("BlastBody");
@@ -384,107 +400,133 @@ public class SnakeControl : MonoBehaviour
         {
             Destroy(blastBody);
         }
-        foreach(var barrier in barrierDic.Values)
-        {
-            Destroy(barrier);
-        }
+        yield return null;
 
-        snakeBodyDic.Clear();
+        snakeFoodDic.Clear();
         snakeBodyList.Clear();
+        barrierDic.Clear();
+        MapDic.Clear();
 
-        InitMap();
-        InitSnakeHead();
-        GenSnakeBody();
-
+        gameGoing = false;
         gameOver = false;
         gameResuming = false;
+        doAtMoveBegin = false;
         currentWaitTime = 0;
         Time.timeScale = 1.0f;
-        muscleCount = 0;
-        penetrateCount = 0;
 
-        RenderSettings.ambientLight = Color.gray;
-
-        yield return null;
+        yield return StartCoroutine(InitUI());
+        InitMap();
+        yield return StartCoroutine(StartGame());
     }
 
 
     void Update()
     {
-        ProcessUserInput();
+        if (!gameOver)
+            ProcessUserInput();
     }
 
     void FixedUpdate()
     {
-        if (!gameOver && !gameResuming)
+        if (gameGoing && !gameOver && !gameResuming)
         {
-            //if (speedUp)
-            //{
-            //    currentSpeedUpTime += Time.deltaTime;
-            //    if (currentSpeedUpTime > speedUpTime)
-            //    {
-            //        speedUp = false;
-            //        currentSpeedUpTime = 0;
-            //        Time.timeScale /= 2;
-            //    }
-            //}
             DoMove();
         }
     }
 
     //
-    private bool CheckGameOver()
+    bool CheckGameOver()
     {
         //Vector3 tempNextPos = headNextPos + nextDirection;
-        Vector3 headNextPos = snakeHead.currentPos + snakeHead.moveDirection;// +nextDirection;
-        //if (headNextPos.x < 0 || headNextPos.x > 9 || headNextPos.y < 0 || headNextPos.y > 9 || headNextPos.z < 0 || headNextPos.z > 9)
-        //{
-        //    Debug.Log("Game Over, out of map");
-        //    return true;
-        //}
-        if (moveSpace[(int)headNextPos.x, (int)headNextPos.y, (int)headNextPos.z] == SNAKE)
+        Vector3 headNextPos = snakeHead.currentPos + snakeHead.moveDirection;
+
+        if(headNextPos.x > borderRight || headNextPos.x < borderLeft || headNextPos.z > borderForward || headNextPos.z < borderBack)
         {
-            if (penetrateCount > 0)
-            {
-                penetrateCount--;
-                return false;
-            }
-            else
-            {
-                Debug.Log("Game Over, hit self");
-                return true;
-            }
-        }
-        if (moveSpace[(int)headNextPos.x, (int)headNextPos.y, (int)headNextPos.z] == UNREACHABLE)
-        {
-            Debug.Log("Game Over");
+            Util.Log("out of map");
             return true;
         }
-        if (moveSpace[(int)headNextPos.x, (int)headNextPos.y, (int)headNextPos.z] == BARRIER)
+
+        int value = -233;
+        if (!MapDic.TryGetValue(headNextPos, out value))
         {
-            if (muscleCount > 0)
+            Util.Log("!MapDic.TryGetValue " + headNextPos);
+            return true;
+        }
+
+        foreach(var body in snakeBodyList)
+        {
+            if(body.currentPos == headNextPos)
             {
-                muscleCount--;
-                GameObject barrier = null;
-                barrierDic.TryGetValue(headNextPos, out barrier);
-                if (barrier != null)
+                value = SNAKE;
+                break;
+            }
+        }
+
+        switch (value)
+        {
+            case SNAKE:
                 {
-                    barrier.GetComponent<BarrierControl>().Blast();
-                    barrierDic.Remove(headNextPos);
+                    if (penetrateCount > 0)
+                    {
+                        penetrateCount--;
+                        penetrateText.text = "：" + penetrateCount;
+                        StartCoroutine(ShowTip(headLight.transform.position, "-1", 1));
+                        return false;
+                    }
+                    else
+                    {
+                        Util.Log("Game Over, hit self");
+                        return true;
+                    }
                 }
-                return false;
-            }
-            else
-            {
-                Debug.Log("Game Over, hit barrier");
-                return true;
-            }
+            case FLOOR:
+                {
+                    Util.Log("Game Over");
+                    return true;
+                }
+            case BARRIER:
+                {
+                    if (muscleCount > 0)
+                    {
+                        muscleCount--;
+                        muscleText.text = "：" + muscleCount;
+                        StartCoroutine(ShowTip(headLight.transform.position, "-1", 0));
+                        BarrierControl barrier = null;
+                        barrierDic.TryGetValue(headNextPos, out barrier);
+                        if (barrier != null)
+                        {
+                            barrier.Blast(4);
+                            Destroy(barrierDic[headNextPos].gameObject);
+                            barrierDic.Remove(headNextPos);
+                            MapDic[headNextPos] = BLANKSPACE;
+                        }
+                        return false;
+                    }
+                    else if (penetrateCount > 0)
+                    {
+                        penetrateCount--;
+                        penetrateText.text = "：" + penetrateCount;
+                        StartCoroutine(ShowTip(headLight.transform.position, "-1", 1));
+                        return false;
+                    }
+                    else
+                    {
+                        Util.Log("Game Over, hit barrier");
+                        return true;
+                    }
+                }
         }
         return false;
     }
 
+    // 强制结束游戏
+    void ForceGameOver()
+    {
+
+    }
+
     //处理用户输入
-    private void ProcessUserInput()
+    void ProcessUserInput()
     {
         if (Input.GetKey("space"))
         {
@@ -503,11 +545,13 @@ public class SnakeControl : MonoBehaviour
         //tan10 = 0.176
         //tan5 = 0.0875
         //tan0 = 0
+
+        //手指触控
         if (Input.touchCount > 0)
         {
             if (Input.GetTouch(0).phase == TouchPhase.Canceled)
             {
-                Debug.Log("Canceled");
+                Util.Log("Canceled");
             }
             if (Input.GetTouch(0).phase == TouchPhase.Began)
             {
@@ -518,36 +562,38 @@ public class SnakeControl : MonoBehaviour
             {
                 touchEndPos = Input.GetTouch(0).position;
 
-                Vector3 tempDirection = new Vector3();
+                Vector3 tempDirection = snakeHead.moveDirection;
                 float tan = (touchEndPos.y - touchBeganPos.y) / (touchEndPos.x - touchBeganPos.x);
-
 
                 if (tan < 1.732 && tan > 0)
                 {
-                    tempDirection = negativeX;
+                    tempDirection = Vector3.left;
                 }
-                if (tan < -0 && tan > -1.732)
+                else if (tan < 0 && tan > -1.732)
                 {
-                    tempDirection = positiveZ;
+                    tempDirection = Vector3.forward;
                 }
-                if (tan < -1.732)
+                /*
+                else if (tan <= -1.732)
                 {
-                    tempDirection = negativeY;
+                    tempDirection = Vector3.down;
                 }
-                if (tan > 1.732)
+                else if (tan >= 1.732)
                 {
-                    tempDirection = positiveY;
+                    tempDirection = Vector3.up;
                 }
+                */
                 if (touchEndPos.x - touchBeganPos.x < 0)
                 {
                     tempDirection = -tempDirection;
                 }
+                
                 //Debug.Log("began: " + touchBeganPos + " end: " + touchEndPos + " tan:" + tan + " d:" + tempDirection);
                 TryChangeDirection(tempDirection);
             }
         }
 
-        //鼠标滑动操作
+        //鼠标的滑动操作
         if (Input.GetMouseButtonDown(0))
         {
             touchBeganPos = Input.mousePosition;
@@ -557,24 +603,24 @@ public class SnakeControl : MonoBehaviour
         {
             touchEndPos = Input.mousePosition;
 
-            Vector3 tempDirection = new Vector3();
+            Vector3 tempDirection = snakeHead.moveDirection;
             float tan = (touchEndPos.y - touchBeganPos.y) / (touchEndPos.x - touchBeganPos.x);
 
-            if (tan < 1.732 && tan > 0)
+            if (tan <= 1.732 && tan >= 0)
             {
-                tempDirection = negativeX;
+                tempDirection = Vector3.left;
             }
-            if (tan < -0 && tan > -1.732)
+            else if (tan <= 0 && tan >= -1.732)
             {
-                tempDirection = positiveZ;
+                tempDirection = Vector3.forward;
             }
-            if (tan < -1.732)
+            else if (tan <= -1.732)
             {
-                tempDirection = negativeY;
+                tempDirection = Vector3.down;
             }
-            if (tan > 1.732)
+            else if (tan >= 1.732)
             {
-                tempDirection = positiveY;
+                tempDirection = Vector3.up;
             }
             if (touchEndPos.x - touchBeganPos.x < 0)
             {
@@ -587,96 +633,66 @@ public class SnakeControl : MonoBehaviour
         //键盘操作
         if (Input.GetKey("i") || Input.GetKey("w"))
         {
-            TryChangeDirection(positiveY);
+            TryChangeDirection(Vector3.up);
         }
         else if (Input.GetKey("k") || Input.GetKey("s"))
         {
-            TryChangeDirection(negativeY);
+            TryChangeDirection(Vector3.down);
         }
         else if (Input.GetKey("j") || Input.GetKey("a"))
         {
-            TryChangeDirection(negativeZ);
+            TryChangeDirection(Vector3.back);
         }
         else if (Input.GetKey("l") || Input.GetKey("d"))
         {
-            TryChangeDirection(positiveZ);
+            TryChangeDirection(Vector3.forward);
         }
         else if (Input.GetKey("u") || Input.GetKey("q"))
         {
-            TryChangeDirection(positiveX);
+            TryChangeDirection(Vector3.right);
         }
         else if (Input.GetKey("o") || Input.GetKey("e"))
         {
-            TryChangeDirection(negativeX);
+            TryChangeDirection(Vector3.left);
         }
     }
 
 
-    private void TryChangeDirection(Vector3 direction)
+    void TryChangeDirection(Vector3 direction)
     {
-        Debug.Log("TryChangeDirection " + direction);
+        //Debug.Log("TryChangeDirection " + direction);
 
         Vector3 headNextPos = snakeHead.currentPos + snakeHead.moveDirection;
         if (gameResuming)
         {
             headNextPos = snakeHead.currentPos;
         }
-        int x = (int)headNextPos.x;
-        int y = (int)headNextPos.y;
-        int z = (int)headNextPos.z;
-        Debug.Log(headNextPos);
+        //int x = (int)headNextPos.x;
+        //int y = (int)headNextPos.y;
+        //int z = (int)headNextPos.z;
+        //Debug.Log(headNextPos);
 
         bool changed = false;
-
-        if (direction == positiveX)
+        var nNext = headNextPos + direction;
+        if (!MapDic.ContainsKey(nNext))
         {
-            if (checkMove(moveSpace[x + 1, y, z]))
-            {
-                nextDirection = positiveX;
-                changed = true;
-            }
-        }
-        else if (direction == negativeX)
-        {
-            if (checkMove(moveSpace[x - 1, y, z]))
-            {
-                nextDirection = negativeX;
-                changed = true;
-            }
-        }
-        else if (direction == positiveY)
-        {
-            if (checkMove(moveSpace[x, y + 1, z]))
-            {
-                nextDirection = positiveY;
-                changed = true;
-            }
-        }
-        else if (direction == negativeY)
-        {
-            if (checkMove(moveSpace[x, y - 1, z]))
-            {
-                nextDirection = negativeY;
-                changed = true;
-            }
-        }
-        else if (direction == positiveZ)
-        {
-            if (checkMove(moveSpace[x, y, z + 1]))
-            {
-                nextDirection = positiveZ;
-                changed = true;
-            }
-        }
-        else if (direction == negativeZ)
-        {
-            if (checkMove(moveSpace[x, y, z - 1]))
-            {
-                nextDirection = negativeZ;
-                changed = true;
-            }
+            Util.Log("invalied direction");
+            return;
         }
 
+        int value = MapDic[nNext];
+        foreach(var body in snakeBodyList)
+            if(body.currentPos == nNext)
+        {
+                value = SNAKE;
+                break;
+        }
+        if (checkMove(value))
+        {
+            nextDirection = direction;
+            changed = true;
+        }
+        
         if (changed)
         {
             currentWaitTime = waitTime + 0.1f;
@@ -688,27 +704,27 @@ public class SnakeControl : MonoBehaviour
         }
     }
 
-    private bool checkMove(int spaceValue)
+    bool checkMove(int spaceValue)
     {
         bool flag = false;
         switch (spaceValue)
         {
             case BARRIER:
                 {
-                    if(muscleCount > 0)
+                    if (muscleCount > 0)
                     {
                         flag = true;
                     }
                     break;
                 }
-            case UNREACHABLE:
+            case FLOOR:
                 {
                     flag = false;
                     break;
                 }
             case SNAKE:
                 {
-                    if(penetrateCount > 0)
+                    if (penetrateCount > 0)
                     {
                         flag = true;
                     }
@@ -719,7 +735,7 @@ public class SnakeControl : MonoBehaviour
                     flag = true;
                     break;
                 }
-            case EATBODY:
+            case FOOD:
                 {
                     flag = true;
                     break;
@@ -728,10 +744,26 @@ public class SnakeControl : MonoBehaviour
         return flag;
     }
 
-
-    private void ProcessGameOver()
+    //死亡爆炸
+    IEnumerator BlastAllBodyFood()
     {
-        StartCoroutine(ShowBlast());
+        foreach (var body in snakeBodyList)
+        {
+            body.Blast(3);
+            body.gameObject.SetActive(false);
+            yield return new WaitForSeconds(blastTime);
+        }
+        foreach (var body in snakeFoodDic.Values)
+        {
+            body.Blast(3);
+            body.gameObject.SetActive(false);
+            yield return new WaitForSeconds(blastTime);
+        }
+    }
+
+    void ProcessGameOver()
+    {
+        StartCoroutine(BlastAllBodyFood());
 
         gameOver = true;
         //headNextPos -= nextDirection;
@@ -743,7 +775,7 @@ public class SnakeControl : MonoBehaviour
         {
             resumeButton.gameObject.SetActive(true);
             restartButton.GetComponent<RectTransform>().localPosition = new Vector3(0, -100, 0);
-            restartButton.GetComponentInChildren<Text>().text = "我才不看广告呢╭(╯^╰)╮";
+            //restartButton.GetComponentInChildren<Text>().text = "我才不看广告呢╭(╯^╰)╮";
         }
         //else
         //{
@@ -754,8 +786,8 @@ public class SnakeControl : MonoBehaviour
 
     }
 
-    //判断是否吃到
-    private void DoAtMoveBegin()
+    //在运动开始时判断是否吃到或者死掉
+    void DoAtMoveBegin()
     {
         if (doAtMoveBegin)
         {
@@ -768,9 +800,10 @@ public class SnakeControl : MonoBehaviour
         }
         ProcessEat();
         doAtMoveBegin = true;
+        AudioControl.instance.playMoveSound();
     }
 
-    private void DoMove()
+    void DoMove()
     {
         DoAtMoveBegin();
 
@@ -819,16 +852,21 @@ public class SnakeControl : MonoBehaviour
         startV = endV;
     }
 
-    private void ProcessEat()
+    void ProcessEat()
     {
         Vector3 headNextPos = snakeHead.currentPos + snakeHead.moveDirection;
         //如果吃到
-        if (moveSpace[(int)headNextPos.x, (int)headNextPos.y, (int)headNextPos.z] == EATBODY)
+        //if (moveSpace[(int)headNextPos.x, (int)headNextPos.y, (int)headNextPos.z] == FOOD)
+        if (!MapDic.ContainsKey(headNextPos))
         {
-            Debug.Log("got one!");
+            Util.LogError("!MapDic.ContainsKey " + headNextPos);
+            return;
+        }
 
+        if (MapDic[headNextPos] == FOOD)
+        {
             SnakeBody bodyCube = null;
-            snakeBodyDic.TryGetValue(headNextPos, out bodyCube);
+            snakeFoodDic.TryGetValue(headNextPos, out bodyCube);
             if (bodyCube != null)
             {
                 bodyCube.Blast(4);
@@ -844,51 +882,64 @@ public class SnakeControl : MonoBehaviour
                     bodyCube.moveDirection = lastBody.moveDirection;
                 }
 
-                moveSpace[bodyCube.posX, bodyCube.posY, bodyCube.posZ] = SNAKE;
+                //moveSpace[bodyCube.posX, bodyCube.posY, bodyCube.posZ] = SNAKE;
+                //MapDic[bodyCube.currentPos] = SNAKE;
                 bodyCube.eat = true;
 
-                switch(bodyCube.cubeType)
+                switch (bodyCube.cubeType)
                 {
-                    case CubeType.CommonCube:
-                        {
-                            break;
-                        }
                     case CubeType.DoubleCube:
                         {
+                            AudioControl.instance.playDoubleSound();
                             GenSnakeBody();
                             break;
                         }
                     case CubeType.FlashCube:
                         {
+                            AudioControl.instance.playFlashSound();
                             Time.timeScale++;
                             break;
                         }
                     case CubeType.LightOffCube:
                         {
-                            ProcessLight(false);
+                            AudioControl.instance.playLightSound();
+                            ProcessEatLight(false);
                             GenSnakeBody(CubeType.LightOnCube);
                             break;
                         }
                     case CubeType.LightOnCube:
                         {
-                            ProcessLight(true);
+                            AudioControl.instance.playLightSound();
+                            ProcessEatLight(true);
                             break;
                         }
                     case CubeType.MuscleCube:
                         {
-                            muscleCount++;
+                            AudioControl.instance.playMuscleSound();
+                            ProcessEatMuscle();
                             break;
                         }
                     case CubeType.PenetrateCube:
                         {
-                            penetrateCount++;
+                            AudioControl.instance.playPenetrateSound();
+                            ProcessEatPenetrate();
                             break;
                         }
                     case CubeType.SwitchCube:
                         {
-                            ProcessSwitch();
+                            ProcessEatSwitch();
                             break;
                         }
+                    case CubeType.TrapCube:
+                        {
+                            AudioControl.instance.playTrapSound();
+                            ProcessEatTrap();
+                            GenSnakeBody(CubeType.SwitchCube);
+                            break;
+                        }
+                    default:
+                        AudioControl.instance.playNormalSound();
+                        break;
                 }
 
                 GenSnakeBody();
@@ -899,22 +950,26 @@ public class SnakeControl : MonoBehaviour
                 }
 
                 snakeBodyList.Add(bodyCube);
-                snakeBodyDic.Remove(headNextPos);
+                snakeFoodDic.Remove(headNextPos);
+                MapDic[headNextPos] = BLANKSPACE;
             }
-            moveSpace[(int)headNextPos.x, (int)headNextPos.y, (int)headNextPos.z] = BLANKSPACE;
+            //moveSpace[(int)headNextPos.x, (int)headNextPos.y, (int)headNextPos.z] = BLANKSPACE;
+
         }
     }
 
-    private void ProcessDirectionChange()
+    void ProcessDirectionChange()
     {
         if (!gameResuming)
         {
             //处理尾部
             SnakeBody lastBody = snakeBodyList[snakeBodyList.Count - 1];
-            moveSpace[lastBody.posX, lastBody.posY, lastBody.posZ] = BLANKSPACE;
+            //moveSpace[lastBody.posX, lastBody.posY, lastBody.posZ] = BLANKSPACE;
+            //MapDic[lastBody.currentPos] = BLANKSPACE;
             //处理头部
             snakeHead.moveOneStep();
-            moveSpace[snakeHead.posX, snakeHead.posY, snakeHead.posZ] = SNAKE;
+            //moveSpace[snakeHead.posX, snakeHead.posY, snakeHead.posZ] = SNAKE;
+            //MapDic[snakeHead.currentPos] = SNAKE;
 
             //更新方向数据
             for (int i = 0; i < snakeBodyList.Count; i++)
@@ -937,243 +992,410 @@ public class SnakeControl : MonoBehaviour
         snakeHead.moveDirection = nextDirection;
     }
 
-    //生成新的块
-    private void GenSnakeBody(CubeType type = CubeType.CommonCube)
+    Vector3[] getVariousBlankSpace(int num)
     {
-        //int zeroIndex = Mathf.CeilToInt(Random.Range(-0.999f, 1.999f));
-        int[] index = new int[3];
-        int count = 0;
-        do
+        var results = new Vector3[num];
+        for(int i = 0; i < num; i ++)
         {
-            count = 0;
-            for (int i = 0; i < 3; i++)
-            {
-                //index[i] = (i == zeroIndex ? 0 : Mathf.CeilToInt(Random.Range(-0.999f, 8.999f)));
-                index[i] = Mathf.CeilToInt(Random.Range(-0.999f, 8.999f));
-                if (index[i] == 4)
-                {
-                    count++;
-                }
-            }
-            if (count >= 2)
-            {
-                continue;
-            }
+
         }
-        while (moveSpace[index[0], index[1], index[2]] != BLANKSPACE);
+        return results;
+    }
 
-        moveSpace[index[0], index[1], index[2]] = EATBODY;
-        Vector3 position = new Vector3(index[0], index[1], index[2]);
-        GameObject newBodyCube = (GameObject)Instantiate(snakeBodyCube, position, Quaternion.identity);
-        SnakeBody body = newBodyCube.GetComponent<SnakeBody>();
-        body.setPos(position);
+    // 在地图上找到一处空白
+    Vector3 getOneBlankspace()
+    {
+        var newPos = Vector3.one;
+        int posX = Mathf.CeilToInt(UnityEngine.Random.value * (mapSizeX - 1)) + borderLeft;
+        int posZ = Mathf.CeilToInt(UnityEngine.Random.value * (mapSizeZ - 1)) + borderBack;
 
-        int randomType = Mathf.CeilToInt(Random.value * 10);
-        if(type == CubeType.LightOnCube)
+        int count = 0;
+        int count1 = 0, count2 = 0;
+        foreach (var v in MapDic.Values)
+        {
+            if (v == BLANKSPACE)
+                count++;
+            if (v == BARRIER)
+                count1++;
+            if (v == FOOD)
+                count2++;
+        }
+            
+        Util.Log("Blankspace: " + count + ", food: " + snakeFoodDic.Count + ", snake: " + snakeBodyList.Count + ", barrier: " + barrierDic.Count);
+        Util.Log("Blankspace: " + count + ", food: " + count2 + ", snake: " + snakeBodyList.Count + ", barrier: " + count1);
+
+        int c = 0;
+        for (int i = 0; i < mapSizeX; i++)
+        {
+            for (int j = 0; j < mapSizeZ; j++)
+            {
+                newPos.x = posX;
+                newPos.z = posZ;
+                //Debug.Log(newPos);
+                if (!MapDic.Keys.Contains(newPos))
+                {
+                    Util.LogError("wtf:" + newPos);
+                    continue;
+                }
+                bool isBody = false;
+                foreach (var body in snakeBodyList)
+                    if (body.currentPos == newPos)
+                {
+                        isBody = true;
+                        break;
+                }
+                
+                if (!isBody && MapDic[newPos] == BLANKSPACE)
+                    return newPos;
+                
+                posZ = (posZ == borderForward) ? borderBack : posZ + 1;
+                c++;
+            }
+            posX = (posX == borderRight) ? borderLeft : posX + 1;
+        }
+
+        Util.LogError("getOneBlankspace " + newPos + " count: " + c);
+        return Vector3.zero;
+    }
+
+    //生成新的块
+    void GenSnakeBody(CubeType type = CubeType.CommonCube)
+    {
+        Vector3 newPos = getOneBlankspace();
+        MapDic[newPos] = FOOD;
+
+        int randomType = Mathf.CeilToInt(UnityEngine.Random.value * 100);
+
+        if (randomType <= 5) //障碍
+            randomType = 10;
+        else if (randomType <= 10) //关灯
+            randomType = 8;
+        else if (randomType <= 16) //加速
+            randomType = 3;
+        else if (randomType <= 22) //switch
+            randomType = 5;
+        else if (randomType <= 27) //肌肉
+            randomType = 6;
+        else if (randomType <= 34) //穿透
+            randomType = 7;
+        else if (randomType <= 41) //double
+            randomType = 4;
+        else if (randomType <= 60) //普通
+            randomType = 1;
+        else if (randomType <= 70) //普通
+            randomType = 2;
+        else if (randomType <= 80) //普通
+            randomType = -1;
+        else                                    //普通
+            randomType = 0;
+
+        if (type != CubeType.CommonCube)
+            randomType = (int)type;
+        
+        if (type == CubeType.LightOnCube)//要求产生开灯块
         {
             randomType = 9;
         }
-        else if(randomType == 9)
+        else if (randomType == 9)//否则如果随机到开灯块则变为关灯块
         {
             randomType = 8;
         }
-        //if (snakeBodyList.Count > 2)
+        //randomType = 5;
+        
+        StartCoroutine(GenSnakeBodyAnim(newPos, randomType));
+    }
+
+    IEnumerator GenSnakeBodyAnim(Vector3 newPos, int randomType)
+    {
+        var newBodyCube = Instantiate(snakeBodyCube, newPos, Quaternion.identity);
+        yield return newBodyCube;
+        //CubeObjectDic.Add(newPos, newBodyCube);
+
+        SnakeBody body = newBodyCube.GetComponent<SnakeBody>();
+        body.setPos(newPos);
+        snakeFoodDic.Add(newPos, body);
+
+        if (snakeBodyList.Count > 0)
         {
             switch (randomType)
             {
+                case -1:
+                    {
+                        yield return newBodyCube.GetComponent<Renderer>().material = bodyMaterial;
+                        break;
+                    }
+                case 0:
+                    {
+                        yield return newBodyCube.GetComponent<Renderer>().material = bodyMaterial2;
+                        break;
+                    }
                 case 1:
                     {
-                        newBodyCube.GetComponent<Renderer>().material = bodyMaterial2;
+                        yield return newBodyCube.GetComponent<Renderer>().material = bodyMaterial3;
                         break;
                     }
                 case 2:
                     {
-                        newBodyCube.GetComponent<Renderer>().material = bodyMaterial3;
+                        yield return newBodyCube.GetComponent<Renderer>().material = bodyMaterial4;
                         break;
                     }
                 case 3:
                     {
-                        newBodyCube.GetComponent<Renderer>().material = flashMaterial;
-                        body.cubeType = (CubeType)randomType;
+                        yield return newBodyCube.GetComponent<Renderer>().material = flashMaterial;
+                        body.cubeType = CubeType.FlashCube;
                         break;
                     }
                 case 4:
                     {
-                        newBodyCube.GetComponent<Renderer>().material = doubleMaterial;
+                        yield return newBodyCube.GetComponent<Renderer>().material = doubleMaterial;
                         body.cubeType = CubeType.DoubleCube;
                         break;
                     }
                 case 5:
                     {
-                        newBodyCube.GetComponent<Renderer>().material = switchMaterial;
+                        yield return newBodyCube.GetComponent<Renderer>().material = switchMaterial;
                         body.cubeType = CubeType.SwitchCube;
                         break;
                     }
                 case 6:
                     {
-                        newBodyCube.GetComponent<Renderer>().material = muscleMaterial;
+                        yield return newBodyCube.GetComponent<Renderer>().material = muscleMaterial;
                         body.cubeType = CubeType.MuscleCube;
                         break;
                     }
                 case 7:
                     {
-                        newBodyCube.GetComponent<Renderer>().material = penetrateMaterial;
+                        yield return newBodyCube.GetComponent<Renderer>().material = penetrateMaterial;
                         body.cubeType = CubeType.PenetrateCube;
                         break;
                     }
                 case 8:
                     {
-                        newBodyCube.GetComponent<Renderer>().material = lightOffMaterial;
+                        yield return newBodyCube.GetComponent<Renderer>().material = lightOffMaterial;
                         body.cubeType = CubeType.LightOffCube;
                         break;
                     }
                 case 9:
                     {
-                        newBodyCube.GetComponent<Renderer>().material = lightOnMaterial;
+                        yield return newBodyCube.GetComponent<Renderer>().material = lightOnMaterial;
+                        yield return newBodyCube.AddComponent<LightFlash>();
                         body.cubeType = CubeType.LightOnCube;
                         break;
                     }
+                case 10:
+                    yield return newBodyCube.GetComponent<Renderer>().material = trapMaterial;
+                    body.cubeType = CubeType.TrapCube;
+                    break;
             }
         }
-
-        snakeBodyDic.Add(position, body);
-
     }
-
-    private void ProcessSwitch()
+    
+    //吃到机关块
+    void ProcessEatSwitch()
     {
-        List<int[]> indexes = new List<int[]>();
+        var removePos = Vector3.zero;
+        var deltaPos = Vector3.zero;
+        int deltaX = (int)snakeHead.moveDirection.x;
+        int deltaZ = (int)snakeHead.moveDirection.z;
 
-        int[] index = getBlankSpace();
-        indexes.Add(index);
-        bool flag = false;
-        for (int i = 0; i < 9; i++)
+        if (snakeHead.moveDirection == Vector3.left)
         {
-            flag = false;
-            var random = Random.value;
-            if (random < 0.1)
-            {
-                if (moveSpace[index[0] + 1, index[1], index[2]] == BLANKSPACE)
-                {
-                    index[0]++;
-                    indexes.Add(index);
-                    flag = true;
-                }
-            }
-            else if(random < 0.3)
-            {
-                if (moveSpace[index[0] - 1, index[1], index[2]] == BLANKSPACE)
-                {
-                    index[0]--;
-                    indexes.Add(index);
-                    flag = true;
-                }
-            }
-            else if (random < 0.5)
-            {
-                if (moveSpace[index[0], index[1]+1, index[2]] == BLANKSPACE)
-                {
-                    index[1]++;
-                    indexes.Add(index);
-                    flag = true;
-                }
-            }
-            else if (random < 0.7)
-            {
-                if (moveSpace[index[0], index[1]-1, index[2]] == BLANKSPACE)
-                {
-                    index[1]--;
-                    indexes.Add(index);
-                    flag = true;
-                }
-            }
-            else if (random < 0.8)
-            {
-                if (moveSpace[index[0], index[1], index[2]+1] == BLANKSPACE)
-                {
-                    index[2]++;
-                    indexes.Add(index);
-                    flag = true;
-                }
-            }
-            else if (random < 1)
-            {
-                if (moveSpace[index[0], index[1], index[2]-1] == BLANKSPACE)
-                {
-                    index[2]--;
-                    indexes.Add(index);
-                    flag = true;
-                }
-            }
-
-            if(!flag)
-            {
-                i--;
-                index = getBlankSpace();
-                continue;
-            }
-            moveSpace[index[0], index[1], index[2]] = BARRIER;
-            var barrier = Instantiate(barrierCube);
-            barrier.GetComponent<BarrierControl>().setPos(index);
-
-            barrierDic.Add(new Vector3(index[0], index[1], index[2]), barrier.gameObject);
+            removePos = new Vector3(borderRight, 0, borderBack);
+            deltaPos = Vector3.forward;
+        }
+        else if (snakeHead.moveDirection == Vector3.right)
+        {
+            removePos = new Vector3(borderLeft, 0, borderForward);
+            deltaPos = Vector3.back;
+        }
+        else if (snakeHead.moveDirection == Vector3.forward)
+        {
+            removePos = new Vector3(borderLeft, 0, borderBack);
+            deltaPos = Vector3.right;
+        }
+        else if (snakeHead.moveDirection == Vector3.back)
+        {
+            removePos = new Vector3(borderRight, 0, borderForward);
+            deltaPos = Vector3.left;
+        }
+        else
+        {
+            Util.LogError("wtf");
         }
 
+        var newPos = removePos + snakeHead.moveDirection * mapSizeX;
+        StartCoroutine(extendMapAnim(newPos, removePos, deltaPos));
+        
+        for (int i = 0; i < mapSizeZ; i++)
+        {
+            if (!MapDic.ContainsKey(newPos))
+                MapDic.Add(newPos, FLOOR);
+            if (!MapDic.ContainsKey(newPos + Vector3.up))
+                MapDic.Add(newPos + Vector3.up, BLANKSPACE);
+            if(MapDic.ContainsKey(removePos))
+                MapDic.Remove(removePos);
+            if (MapDic.ContainsKey(removePos + Vector3.up))
+                MapDic.Remove(removePos + Vector3.up);
+
+            newPos += deltaPos;
+            removePos += deltaPos;
+        }
+
+        borderLeft += deltaX;
+        borderRight += deltaX;
+        borderForward += deltaZ;
+        borderBack += deltaZ;
     }
 
-    private void ProcessLight(bool offon)
+    void CheckMapDic(int index)
     {
-        if(!offon)
+        if (MapDic.Count > 200)
+        {
+            Util.LogError("error " + index + ", " + MapDic.Count + " " + borderLeft + " " + borderRight + " " + borderForward + " " + borderBack);
+        }
+    }
+
+    IEnumerator extendMapAnim(Vector3 newPos, Vector3 removePos, Vector3 deltaPos)
+    {
+        GameObject cube;
+        for (int i = 0; i < mapSizeZ; i++)
+        {
+            var newCube = Instantiate(floorCube, newPos, Quaternion.identity);
+            yield return newCube;
+            CubeObjectDic.Add(newPos, newCube);
+
+            cube = null;
+            CubeObjectDic.TryGetValue(removePos, out cube);
+            if (cube != null)
+            {
+                cube.GetComponent<SnakeBody>().Blast(3);
+                //cube.SetActive(false);
+                Destroy(cube);
+            }
+            else
+                Util.Log("wtf: " + removePos);
+
+            var removeUp = removePos + Vector3.up;
+            if (barrierDic.ContainsKey(removeUp))
+            {
+                barrierDic[removeUp].Blast();
+                Destroy(barrierDic[removeUp].gameObject);
+                barrierDic.Remove(removeUp);
+            }
+
+            if (snakeFoodDic.ContainsKey(removeUp))
+            {
+                Util.Log("remove food at " + removeUp);
+                snakeFoodDic[removeUp].Blast();
+                Destroy(snakeFoodDic[removeUp].gameObject);
+                snakeFoodDic.Remove(removeUp);
+            }
+
+            CubeObjectDic.Remove(removePos);
+            newPos += deltaPos;
+            removePos += deltaPos;
+            yield return new WaitForSeconds(Time.timeScale / mapSizeZ / 2);
+        }
+    }
+
+    //陷阱逻辑
+    void ProcessEatTrap(int barrierNum = BARRIER_NUM)
+    {
+        Vector3[] newBarriers = new Vector3[barrierNum];
+        for (int i = 0; i < barrierNum; i++)
+        {
+            var pos = getOneBlankspace();
+            MapDic[pos] = BARRIER;
+            newBarriers[i] = pos;
+        }
+        StartCoroutine(TrapAnim(newBarriers));
+    }
+    //陷阱动画
+    IEnumerator TrapAnim(Vector3[] newBarriers)
+    {
+        for (int i = 0; i < newBarriers.Length; i++)
+        {
+            if (barrierDic.Keys.Contains(newBarriers[i]))
+                continue;
+            var barrier = Instantiate(barrierCube).GetComponent<BarrierControl>();
+            yield return barrier;
+            barrier.setPos(newBarriers[i]);
+            barrierDic.Add(newBarriers[i], barrier);
+        }
+    }
+
+    //吃到灯光开关
+    void ProcessEatLight(bool offon)
+    {
+        if (!offon)
         {
             switchLight.enabled = true;
             switchLight.turnOff();
+            muscleText.color = new Color(0.8f, 0.8f, 0.8f);
+            penetrateText.color = new Color(0.8f, 0.8f, 0.8f);
         }
         else
         {
             switchLight.enabled = true;
             switchLight.turnOn();
+            muscleText.color = new Color(0.2f, 0.2f, 0.2f);
+            penetrateText.color = new Color(0.2f, 0.2f, 0.2f);
         }
     }
 
-    private int[] getBlankSpace()
+    //吃到肌肉块
+    void ProcessEatMuscle()
     {
-        int[] index = new int[3];
-        do
-        {
-            for (int i = 0; i < 3; i++)
-            {
-                //index[i] = (i == zeroIndex ? 0 : Mathf.CeilToInt(Random.Range(-0.999f, 8.999f)));
-                index[i] = Mathf.CeilToInt(Random.Range(0.001f, 9.999f));
-            }
-        }
-        while (moveSpace[index[0], index[1], index[2]] != BLANKSPACE);
-
-        return index;
+        muscleCount++;
+        muscleText.text = "：" + muscleCount;
+        //ShowTip(headLight.transform.position, "+1", 0);
+        StartCoroutine(ShowTip(headLight.transform.position, "+1", 0));
     }
 
-
-    private void printState()
+    //吃到穿透块
+    void ProcessEatPenetrate()
     {
-        Debug.Log("----------");
-        int snakeCount = 0;
-        for (int i = 0; i < 10; i++)
-        {
-            for (int j = 0; j < 10; j++)
-            {
-                for (int k = 0; k < 10; k++)
-                {
-                    if (i == 0 || j == 0 || k == 0)
-                    {
-                        if (moveSpace[i, j, k] == SNAKE)
-                        {
-                            snakeCount++;
-                        }
-                    }
-                }
-            }
-        }
-        Debug.Log("snakeCount " + snakeCount);
-        Debug.Log("snakeBodyList.Count " + snakeBodyList.Count);
+        penetrateCount++;
+        penetrateText.text = "：" + penetrateCount;
+        //ShowTip(headLight.transform.position, "+1", 1);
+        StartCoroutine(ShowTip(headLight.transform.position, "+1", 1));
+    }
+
+    void ProcessEatChangeMap()
+    {
+
+    }
+
+    IEnumerator ShowTip(Vector3 pos, string tip, int index)
+    {
+        //Debug.Log(pos);
+        //tipText.gameObject.transform.position = pos;
+        tipText.GetComponent<ShowTip>().Show(new Vector3(pos.x + 1, pos.y + 1, pos.z + 1), tip, index);
+        yield return null;
+    }
+
+    void printState()
+    {
+        //Debug.Log("----------");
+        //int snakeCount = 0;
+        //for (int i = 0; i < 10; i++)
+        //{
+        //    for (int j = 0; j < 10; j++)
+        //    {
+        //        for (int k = 0; k < 10; k++)
+        //        {
+        //            if (i == 0 || j == 0 || k == 0)
+        //            {
+        //                if (moveSpace[i, j, k] == SNAKE)
+        //                {
+        //                    snakeCount++;
+        //                }
+        //            }
+        //        }
+        //    }
+        //}
+        //Debug.Log("snakeCount " + snakeCount);
+        //Debug.Log("snakeBodyList.Count " + snakeBodyList.Count);
         //foreach (SnakeBody body in snakeBodyList)
         //{
         //    Debug.Log("body instancePos " + body.instantPos);
@@ -1182,22 +1404,22 @@ public class SnakeControl : MonoBehaviour
         //}
     }
 
-    private void checkSnake()
+    void checkSnake()
     {
         //Debug.Log("-----");
-        for (int i = 0; i < 10; i++)
-        {
-            for (int j = 0; j < 10; j++)
-            {
-                for (int k = 0; k < 10; k++)
-                {
-                    if (moveSpace[i, j, k] == SNAKE)
-                    {
-                        //Debug.Log("snake: " + i + " " + j + " " + k);
-                    }
-                }
-            }
-        }
+        //for (int i = 0; i < 10; i++)
+        //{
+        //    for (int j = 0; j < 10; j++)
+        //    {
+        //        for (int k = 0; k < 10; k++)
+        //        {
+        //            if (moveSpace[i, j, k] == SNAKE)
+        //            {
+        //                //Debug.Log("snake: " + i + " " + j + " " + k);
+        //            }
+        //        }
+        //    }
+        //}
     }
 
 }

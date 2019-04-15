@@ -1,10 +1,9 @@
 ﻿using UnityEngine;
 using System.Collections;
 
-public class BarrierControl : MonoBehaviour
+public class BarrierControl : BasicCube
 {
-    public GameObject blastCube;
-    private int[] location = new int[3];
+    private Vector3 location = new Vector3();
     private Vector3 moveD = new Vector3();
     private float speed = 0.01f;
     private float displacement = 0;
@@ -18,7 +17,7 @@ public class BarrierControl : MonoBehaviour
 
     void FixedUpdate()
     {
-        if(displacement > 1)
+        if(displacement >= 1)
         {
             return;
         }
@@ -27,15 +26,10 @@ public class BarrierControl : MonoBehaviour
         transform.position = instantPos;
     }
 
-    public void setPos(int[] pos)
+    public void setPos(Vector3 pos)
     {
-        location[0] = pos[0];
-        location[1] = pos[1];
-        location[2] = pos[2];
-
-        instantPos.x = pos[0];
-        instantPos.y = pos[1];
-        instantPos.z = pos[2];
+        location = pos;
+        instantPos = pos;
 
         if(pos[0] == 1)
         {
@@ -57,7 +51,14 @@ public class BarrierControl : MonoBehaviour
         transform.position = instantPos;
     }
 
+    /*
     public void Blast()
+    {
+        StartCoroutine(BlastAsync(4));
+        AudioControl.instance.playBlastSound();
+    }
+
+    IEnumerator BlastAsync(int num)
     {
         blastCube.GetComponent<Renderer>().material = gameObject.GetComponent<Renderer>().material;
         Vector3 position = new Vector3();
@@ -75,5 +76,7 @@ public class BarrierControl : MonoBehaviour
             }
         }
         Destroy(gameObject);
+        yield return new WaitForEndOfFrame();
     }
+    */
 }

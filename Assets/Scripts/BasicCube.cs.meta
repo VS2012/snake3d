@@ -1,0 +1,14 @@
+fileFormatVersion: 2
+guid: a1c05a0a3e753ca4fac23015dd3a427a
+timeCreated: 1527130896
+licenseType: Free
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences:
+  - blastCube: {fileID: 177778, guid: 0e4cd75f724b2eb45bd5e1701453ee97, type: 2}
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

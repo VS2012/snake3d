@@ -1,19 +1,16 @@
 ﻿using UnityEngine;
 using System.Collections;
-using System.Collections.Generic;
 
-public class SnakeBody : MonoBehaviour
+public class SnakeBody : BasicCube
 {
-    public GameObject blastCube;
     public SnakeBody preBody;
-    public Vector3 instantPos = new Vector3();//瞬时位置
+    public Vector3 instantPos = new Vector3(); //瞬时位置
     public Vector3 currentPos = new Vector3();
-
     private Vector3 appearScale = Vector3.zero;
 
-    public int posX;
-    public int posY;
-    public int posZ;
+    //public int posX;
+    //public int posY;
+    //public int posZ;
 
     public Vector3 preDirection;
     public Vector3 moveDirection;
@@ -26,7 +23,9 @@ public class SnakeBody : MonoBehaviour
 
     void Start()
     {
+        Appear();
         //StartCoroutine(Appear());
+        //blastCube.GetComponent<Renderer>().material = gameObject.GetComponent<Renderer>().material;
     }
 
 
@@ -37,6 +36,7 @@ public class SnakeBody : MonoBehaviour
             return;
         }
 
+        /*
         if (!appeared)
         {
             //Debug.Log(appearScale);
@@ -56,6 +56,7 @@ public class SnakeBody : MonoBehaviour
                 appeared = true;
             }
         }
+        */
 
         if (appending)
         {
@@ -68,7 +69,7 @@ public class SnakeBody : MonoBehaviour
         }
     }
 
-    private void DoMove()
+    void DoMove()
     {
         instantPos += SnakeControl.atomDistance * moveDirection;
         transform.position = instantPos;
@@ -78,9 +79,10 @@ public class SnakeBody : MonoBehaviour
     {
         instantPos.Set(newPos.x, newPos.y, newPos.z);
         currentPos.Set(newPos.x, newPos.y, newPos.z);
-        posX = (int)newPos.x;
-        posY = (int)newPos.y;
-        posZ = (int)newPos.z;
+
+        //posX = (int)newPos.x;
+        //posY = (int)newPos.y;
+        //posZ = (int)newPos.z;
     }
 
     public void moveOneStep()
@@ -92,11 +94,56 @@ public class SnakeBody : MonoBehaviour
     public void Appear()
     {
         gameObject.transform.localScale = Vector3.zero;
+        gameObject.SetActive(true);
         appearScale = Vector3.zero;
-        appeared = false;
+        StartCoroutine(AppearAsync());
+        //appeared = false;
     }
 
-    public void Blast(int count)
+    IEnumerator AppearAsync(float ratio = 1.2f)
+    {
+        while(appearScale.x < ratio)
+        {
+            transform.Rotate(0, Time.deltaTime * 180, 0);
+            appearScale.x += 2 * Time.deltaTime;
+            appearScale.y += 2 * Time.deltaTime;
+            appearScale.z += 2 * Time.deltaTime;
+            transform.localScale = appearScale;
+            yield return null;
+        }
+        while(appearScale.x >= 1)
+        {
+            transform.Rotate(0, Time.deltaTime * 180, 0);
+            appearScale.x -= 2 * Time.deltaTime;
+            appearScale.y -= 2 * Time.deltaTime;
+            appearScale.z -= 2 * Time.deltaTime;
+            transform.localScale = appearScale;
+            yield return null;
+        }
+        var stopRotate = Mathf.CeilToInt(transform.localRotation.y) % 90 + 1;
+        while(transform.localRotation.y > stopRotate * 90)
+        {
+            transform.Rotate(0, Time.deltaTime * 180, 0);
+            yield return null;
+        }
+
+        appearScale.x = 1;
+        appearScale.y = 1;
+        appearScale.z = 1;
+        transform.localScale = appearScale;
+        transform.localRotation = new Quaternion(0, 0, 0, 0);
+        appeared = true;
+    }
+
+    /*
+    public void Blast(int count = 3, bool playSound = true)
+    {
+        StartCoroutine(BlastAsync(count));
+        if(playSound)
+            AudioControl.instance.playBlastSound();
+    }
+
+    IEnumerator BlastAsync(int count)
     {
         float subCubeLength = 1 / (float)count;
         float physicsLength = subCubeLength + 0.2f / count;
@@ -111,12 +158,14 @@ public class SnakeBody : MonoBehaviour
             {
                 for (int k = 0; k < count; k++)
                 {
-                    position.x = posX - offset + i * subCubeLength;
-                    position.y = posY - offset + j * subCubeLength;
-                    position.z = posZ - offset + k * subCubeLength;
+                    position.x = transform.localPosition.x - offset + i * subCubeLength;
+                    position.y = transform.localPosition.y - offset + j * subCubeLength;
+                    position.z = transform.localPosition.z - offset + k * subCubeLength;
                     Instantiate(blastCube, position, Quaternion.identity);
                 }
             }
         }
+        yield return new WaitForEndOfFrame();
     }
+    */
 }
