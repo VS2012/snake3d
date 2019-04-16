@@ -3,8 +3,11 @@ using System.Collections;
 
 public class BlastControl : MonoBehaviour
 {
+    private WaitForSeconds checkInterval;
+
     void Start()
     {
+        checkInterval = new WaitForSeconds(0.1f);
         StartCoroutine(CheckAsync());
     }
 
@@ -26,7 +29,7 @@ public class BlastControl : MonoBehaviour
             {
                 Destroy(gameObject);
             }
-            yield return new WaitForSeconds(0.1f);
+            yield return checkInterval;
         }
     }
 }

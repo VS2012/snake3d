@@ -5,9 +5,11 @@ public class BlastSoundControl : MonoBehaviour
 {
     AudioSource audioSource;
     public AudioClip[] blastSound;
+    private WaitForSeconds waitInterval;
 
     private void Awake()
     {
+        waitInterval = new WaitForSeconds(0.1f);
         audioSource = GetComponent<AudioSource>();
     }
     // Use this for initialization
@@ -25,7 +27,7 @@ public class BlastSoundControl : MonoBehaviour
     {
         audioSource.PlayOneShot(sound);
         while (audioSource.isPlaying)
-            yield return new WaitForSeconds(0.1f);
+            yield return waitInterval;
         Destroy(gameObject);
     }
 }

@@ -5,6 +5,8 @@ using UnityEngine;
 public class BasicCube : MonoBehaviour
 {
     public GameObject blastCube;
+    private WaitForEndOfFrame wait = new WaitForEndOfFrame();
+    private Vector3 position = new Vector3();
 
     public void BlastAndDestory()
     {
@@ -26,7 +28,6 @@ public class BasicCube : MonoBehaviour
         float offset = (subCubeLength / 2) * (count - 1);
         blastCube.GetComponent<Renderer>().material = gameObject.GetComponent<Renderer>().material;
         blastCube.transform.localScale = new Vector3(physicsLength, physicsLength, physicsLength);
-        Vector3 position = new Vector3();
 
         for (int i = 0; i < count; i++)
         {
@@ -41,7 +42,7 @@ public class BasicCube : MonoBehaviour
                 }
             }
         }
-        yield return new WaitForEndOfFrame();
+        yield return wait;
     }
 }
 

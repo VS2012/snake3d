@@ -5,11 +5,13 @@ public class BackgroundControl : MonoBehaviour
 {
     public float moveInterval = 1.0f;
     private Vector3 moveDirction;
+    private WaitForSeconds waitInterval;
     //private Vector3 originPosition;
     //private Vector3[] directions = { Vector3.up, Vector3.down, Vector3.left, Vector3.right };
 
 	void Start () 
     {
+        waitInterval = new WaitForSeconds(moveInterval);
         //originPosition = transform.localPosition;
         Random.InitState((int)(moveInterval * 10));
         StartCoroutine(doMove());
@@ -21,10 +23,10 @@ public class BackgroundControl : MonoBehaviour
         {
             moveDirction = genDirection();
             StartCoroutine(moveBackground(moveDirction));
-            yield return new WaitForSeconds(moveInterval);
+            yield return waitInterval;
             StopCoroutine(moveBackground(moveDirction));
             StartCoroutine(moveBackground(-moveDirction));
-            yield return new WaitForSeconds(moveInterval);
+            yield return waitInterval;
             StopCoroutine(moveBackground(moveDirction));
         }
     }

@@ -72,6 +72,7 @@ public class SnakeControl : MonoBehaviour
     const float blastTime = 0.15f; // Game over 时连续爆炸的间隔时间
     const float waitTime = 0.4f;
     float currentWaitTime = 0;
+    private WaitForSeconds waitBlast = new WaitForSeconds(blastTime);
 
     // const float speedUpTime = 10;
     // float currentSpeedUpTime = 0;
@@ -751,13 +752,13 @@ public class SnakeControl : MonoBehaviour
         {
             body.Blast(3);
             body.gameObject.SetActive(false);
-            yield return new WaitForSeconds(blastTime);
+            yield return waitBlast;
         }
         foreach (var body in snakeFoodDic.Values)
         {
             body.Blast(3);
             body.gameObject.SetActive(false);
-            yield return new WaitForSeconds(blastTime);
+            yield return waitBlast;
         }
     }
 
@@ -1258,6 +1259,7 @@ public class SnakeControl : MonoBehaviour
     IEnumerator extendMapAnim(Vector3 newPos, Vector3 removePos, Vector3 deltaPos)
     {
         GameObject cube;
+        WaitForSeconds wait = new WaitForSeconds(Time.timeScale / mapSizeZ / 2);
         for (int i = 0; i < mapSizeZ; i++)
         {
             var newCube = Instantiate(floorCube, newPos, Quaternion.identity);
@@ -1294,7 +1296,7 @@ public class SnakeControl : MonoBehaviour
             CubeObjectDic.Remove(removePos);
             newPos += deltaPos;
             removePos += deltaPos;
-            yield return new WaitForSeconds(Time.timeScale / mapSizeZ / 2);
+            yield return wait;
         }
     }
 
